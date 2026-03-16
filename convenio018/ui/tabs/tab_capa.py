@@ -75,20 +75,7 @@ def render() -> None:
             df_final = (
                 df_all.groupby(["NFSe", "Convenio"], as_index=False)["Valor"]
                 .sum()
-            )
-
-            df_final["NFSe_num"] = (
-                df_final["NFSe"]
-                .astype(str)
-                .str.replace(r"\D", "", regex=True)
-                .replace("", "0")
-                .astype(int)
-            )
-
-            df_final = (
-                df_final.sort_values(["NFSe_num", "Convenio"], ascending=[True, True])
-                .drop(columns=["NFSe_num"])
-                .reset_index(drop=True)
+                .sort_values(["Convenio", "NFSe"])
             )
 
             render_relatorio_capa(df_final.to_dict("records"), data_capa)

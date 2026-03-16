@@ -55,3 +55,15 @@ Quando você quiser melhorar o projeto, o caminho mais seguro é:
 2. Atualizar `services/api.py` para apontar para a nova implementação
 3. Rodar seus testes manuais no Streamlit
 
+
+
+## Estrutura refatorada
+
+- `convenio018/integrations/`: acesso externo (Google Sheets)
+- `convenio018/domain/`: regras e constantes de convênio/CSV
+- `convenio018/utils/`: helpers puros de parsing, normalização e formatação
+- `convenio018/services/`: fluxos de negócio e exportações
+- `convenio018/ui/forms/`: formulário principal
+- `convenio018/ui/reports/`: relatórios e templates de impressão
+
+Os arquivos `backend.py`, `frontend.py`, `convenio018/services/backend_legacy.py` e `convenio018/services/frontend_legacy.py` foram mantidos apenas por compatibilidade.
