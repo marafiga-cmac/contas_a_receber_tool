@@ -37,7 +37,7 @@ CMAC_GLOSA_TO_3303 = {
     "ICS": ("107", "Instituto Curitiba D"),
     "Itaú": ("9", "Porto Saude"),
     "Judicemed": ("17", "Associacao De Assist"),
-    "Paraná Clínicas": ("101", "Paraná Clínicas"),
+    "Paraná Clínicas": ("101", "Sul America Companhia"),
     "Petrobrás": ("23", "Associacao Petrobras"),
     "Proasa": ("25", "Proasa Programa Adven"),
     "Sanepar": ("12", "Fundação Sanepar A"),
@@ -268,7 +268,7 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
         ("Valor total glosa mantida", _fmt_money(total_glosa_mnt)),
         ("Número de linhas", f"{len(df)}"),
     ]
-
+ 
     titulo = "Relatório — NFS-e"
     convenio_hdr = convenio
     data_str = referencia or (
@@ -284,8 +284,8 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
 
     html = _build_print_html(
         titulo=titulo,
-        convenio="Todos",
-        data_str=data_str,          # aqui é a data escolhida
+        convenio=convenio_hdr,
+        data_str=data_str,
         table_html=table_html,
         total_pairs=total_pairs,
         logo_data_uri=st.session_state.get("logo_data_uri"),
@@ -618,7 +618,7 @@ def render_form():
             "Bradesco": {"subconta_convenio": "10", "deposito_suffix": "Sinistro Ap/Certif."},
             "CarePlus": {"subconta_convenio": "63", "deposito_suffix": "Care Plus Medicina"},
             "Prevent Senior": {"subconta_convenio": "91", "deposito_suffix": "Prevent Senior Privat"},
-            "Sul America": {"subconta_convenio": "3", "deposito_suffix": "Sul America"},
+            "Sul America": {"subconta_convenio": "3", "deposito_suffix": "Sul America", "glosa_neg_trget": "1133001"},
             "Notredame": {"subconta_convenio": "47", "deposito_suffix": "Notre Dame Intermedi"},
             "Assefaz": {"glosa_neg_target": "1133003"},
             "Cassi": {"glosa_neg_target": "1133003"},
@@ -627,6 +627,7 @@ def render_form():
             "GEAP": {"glosa_neg_target": "1133003"},
             "Geap": {"glosa_neg_target": "1133003"},
             "Doctor": {"glosa_neg_target": "1133003"},
+            "Mediservice": {"subconta_convenio": "16", "deposito_suffix": "Mediservice Operadora Planos", "glosa_neg_target": "1133001"},
 
         }
 

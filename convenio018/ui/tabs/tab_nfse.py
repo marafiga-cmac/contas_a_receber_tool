@@ -67,7 +67,7 @@ def render() -> None:
                 valor_busca = str(data_emissao)  # YYYY-MM-DD
 
                 st.session_state["nfse_ctx_convenio"] = convenio
-                st.session_state["nfse_context"] = f"Emissão: {data_emissao.strftime('%d/%m/%Y')}"
+                st.session_state["nfse_context"] = f"Data Emissão: {data_emissao.strftime('%d/%m/%Y')}"
                 st.session_state["nfse_modo"] = "data"
 
             else:
