@@ -144,6 +144,8 @@ def render() -> None:
             anos_com_dados: list[str] = []
 
             # Busca em 2025 e 2026 e junta
+            erros_por_ano = []
+
             for ano in ("2025", "2026"):
                 try:
                     out_path_tmp = processar_convenio_para_json(
@@ -163,9 +165,12 @@ def render() -> None:
                         out_paths.append(out_path_tmp)
                         anos_com_dados.append(ano)
 
-                except Exception:
-                    # mantém comportamento anterior: se um ano falhar, tenta o outro
-                    continue
+                except Exception as e:
+                    erros_por_ano.append(f"{ano}: {e}")
+
+            if erros_por_ano:
+                for err in erros_por_ano:
+                    st.warning(f"Falha ao ler planilha: {err}")
 
             if not items:
                 st.warning("⚠️ Nenhum dado encontrado nem em 2025 nem em 2026.")

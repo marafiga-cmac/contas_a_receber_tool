@@ -8,6 +8,8 @@ from datetime import date
 from typing import Any, Dict, List
 
 from googleapiclient.discovery import build
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from ..integrations.google_sheets import _get_credentials, _read_sheet_values, SCOPES
 from ..utils.normalizers import _norm, _split_imposto_glosa

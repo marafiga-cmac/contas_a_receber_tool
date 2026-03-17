@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any, Optional
+from .parsers import _as_number
 
 import pandas as pd
 

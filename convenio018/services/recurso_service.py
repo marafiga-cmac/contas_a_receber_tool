@@ -1,10 +1,13 @@
 """Transformação e totais do relatório de recursos."""
-
 from __future__ import annotations
+
+from datetime import date
+from typing import Any, Dict, List
 
 import pandas as pd
 
 from ..domain.csv_layouts import RECURSOS_COLUMNS
+from ..utils.parsers import _as_number
 
 def make_recursos_df(items: List[Dict[str, Any]], data_pagamento: date) -> pd.DataFrame:
     registros = []

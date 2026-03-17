@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from ..domain.csv_layouts import REQUIRED_FIELDS
-from .normalizers import _norm
+from ..domain.csv_layouts import REQUIRED_FIELDS, COMBINED_IMPOSTO_GLOSA_KEYS
+from .normalizers import _norm, _split_imposto_glosa
 from .parsers import _as_number
 
 def _find_col_idx(headers: List[str], candidates: List[str], fallback_idx: Optional[int] = None) -> Optional[int]:
