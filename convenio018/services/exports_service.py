@@ -15,6 +15,7 @@ except Exception:  # pragma: no cover
 
 from ..domain.csv_layouts import CSV_COLS, CSV_DELIM
 from ..utils.formatting import _ensure_len, _fmt_ref_mmYYYY, _fmt_amount_csv, _slugify
+from ..utils.parsers import _as_number
 
 def gerar_csv_glosa_mantida_bytes(
     items: list[dict],
@@ -632,7 +633,9 @@ def gerar_csv_nfse_lancamentos_bytes(
         valor_lanc = float(valor_lanc or 0.0)
         if valor_lanc == 0:
             continue
-
+        n_itens += 1
+        total_debito += valor_lanc
+        
         # Descrição:
         # Normal: "Rem. (N° Remessa) - NFSe (NFSe) - Fat. (Ref.)"
         # RG:     "... - NFSe (NF recurso) - Rg. (Ref.)"

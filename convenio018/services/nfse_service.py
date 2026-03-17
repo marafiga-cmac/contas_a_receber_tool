@@ -43,8 +43,17 @@ def processar_nfse_para_json(
     # índices dos campos necessários
     idx_emissao = _find_col_idx(headers, ["data envio nf - convenio"], fallback_idx=None)
 
-    header_num_nf = next((h for h in headers if _norm(h) in ("nº nf","n nf","no nf","numero nf","nfse")), None)
-    header_nf_recurso = next((h for h in headers if _norm(h) in ("nf recurso","nf de recurso")), None)
+    idx_num_nf = _find_col_idx(
+        headers,
+        ["nº nf", "n nf", "no nf", "numero nf", "nfse", "nfs-e", "nfs e"],
+        fallback_idx=None,
+    )
+
+    idx_nf_recurso = _find_col_idx(
+        headers,
+        ["nf recurso", "nf_rec", "nf rec", "nf de recurso", "nf recurso glosa"],
+        fallback_idx=None,
+    )
 
     # onde procurar "Valor recursado"
     idx_valor_recursado = _find_col_idx(headers, VALOR_RECURSADO_KEYS, fallback_idx=None)
@@ -90,8 +99,19 @@ def processar_nfse_para_json(
         else:
             # normaliza números p/ comparação
             target_nf = _normalize_nf_number(valor)
-            cand_nf = _normalize_nf_number(row_dict.get(header_num_nf)) if header_num_nf else ""
-            cand_nfrec = _normalize_nf_number(row_dict.get(header_nf_recurso)) if header_nf_recurso else ""
+
+            cand_nf = (
+                _normalize_nf_number(row[idx_num_nf])
+                if idx_num_nf is not None and idx_num_nf < len(row)
+                else ""
+            )
+
+            cand_nfrec = (
+                _normalize_nf_number(row[idx_nf_recurso])
+                if idx_nf_recurso is not None and idx_nf_recurso < len(row)
+                else ""
+            )
+            
             if not (target_nf and (target_nf == cand_nf or target_nf == cand_nfrec)):
                 continue
             match_nf = True
