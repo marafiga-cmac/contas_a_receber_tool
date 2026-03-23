@@ -4,36 +4,35 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
-from ..integrations.google_sheets import _get_credentials, _read_sheet_values, SCOPES
+from ..integrations.google_sheets import get_sheets_service, _read_sheet_values, SCOPES
 from ..utils.normalizers import _norm, _normalize_nf_number, _split_imposto_glosa
 from ..utils.parsers import _as_date, _as_number
 from ..utils.dataframe_helpers import _build_header_map, _extract_required_fields, _find_col_idx
 from ..domain.csv_layouts import VALOR_RECURSADO_KEYS
 
-def processar_nfse_para_json(
+def processar_nfse(
     spreadsheet_id: str,
     sheet_name: str,
     modo: str,                 # "data" ou "numero"
     valor: str,                # data ISO (YYYY-MM-DD) quando modo="data", ou número da NF quando modo="numero"
-    output_dir: str = ".",
     client_secrets_path: str = "client_secret.json",
     token_path: str = "token.json",
-) -> str:
+) -> List[dict]:
     """Gera JSON de NFS-e por *data de emissão* (“Data envio NF - Convenio”)
     ou por *número da NF* (“Nº NF” / “NF recurso”). Marca linhas que casam em
     NF recurso para o front-end aplicar regras visuais."""
-    import os, json
     from datetime import date
-    os.makedirs(output_dir, exist_ok=True)
 
-    creds = _get_credentials(client_secrets_path=client_secrets_path, token_path=token_path)
-    service = build("sheets", "v4", credentials=creds)
+    try:
+        service = get_sheets_service(client_secrets_path=client_secrets_path, token_path=token_path)
+        values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
+    except HttpError as e:
+        raise RuntimeError(f"Erro ao acessar Google Sheets: {e}") from e
 
-    values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
     if not values:
         raise RuntimeError("Nenhum dado retornado. Verifique a aba e o ID da planilha.")
 
@@ -130,12 +129,5 @@ def processar_nfse_para_json(
 
         out_rows.append(base_item)
 
-    safe_sheet = "".join(c for c in sheet_name if c.isalnum() or c in ("_", "-")).strip() or "aba"
-    suffix = f"data_{target_date.strftime('%Y%m%d')}" if modo == "data" else f"nf_{_normalize_nf_number(valor) or 'sem_numero'}"
-    fname = f"saida_nfse_{safe_sheet}_{suffix}.json"
-    fpath = os.path.join(output_dir, fname)
-
-    with open(fpath, "w", encoding="utf-8") as f:
-        json.dump(out_rows, f, ensure_ascii=False, indent=2)
-    return fpath
+    return out_rows
 

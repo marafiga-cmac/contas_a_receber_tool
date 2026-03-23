@@ -15,7 +15,7 @@ import streamlit as st
 from ...config import SHEET_IDS
 from ...services.api import (
     get_convenios_por_unidade,
-    processar_nfse_para_json,
+    processar_nfse,
     render_relatorio_nfse_para_impressao,
 )
 
@@ -52,7 +52,7 @@ def render() -> None:
         try:
             unidade = st.session_state.get("unidade") or "CMAP"
             sheets = SHEET_IDS[unidade]
-            output_dir = st.session_state.get("output_dir") or "."
+            output_dir = "."
 
             token_path = os.path.join(output_dir, "token.json")
             client_secret_path = st.session_state.get("client_secret_path") or "client_secret.json"
@@ -88,18 +88,14 @@ def render() -> None:
 
             for ano in ("2025", "2026"):
                 try:
-                    out_path_tmp = processar_nfse_para_json(
+                    tmp_items = processar_nfse(
                         spreadsheet_id=sheets[ano],
                         sheet_name=convenio,
                         modo=modo_nfse,
                         valor=valor_busca,
-                        output_dir=output_dir,
                         client_secrets_path=client_secret_path,
                         token_path=token_path,
                     )
-
-                    with open(out_path_tmp, "r", encoding="utf-8") as fjson:
-                        tmp_items = json.load(fjson) or []
 
                     if tmp_items:
                         items_nfse.extend(tmp_items)

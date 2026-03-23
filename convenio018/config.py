@@ -34,7 +34,6 @@ SHEET_IDS = {
 
 # Valores padrão de UI
 DEFAULT_UNIDADE = "CMAP"
-DEFAULT_OUTPUT_DIR = "."
 DEFAULT_CLIENT_SECRET = "client_secret.json"
 DEFAULT_TOKEN_FILE = "token.json"
 

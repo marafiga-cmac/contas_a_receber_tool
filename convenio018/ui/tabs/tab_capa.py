@@ -27,11 +27,13 @@ def render() -> None:
     unidade = st.session_state.get("unidade") or "CMAP"
     convenios, _ = get_convenios_por_unidade(unidade)
 
+    convenios = [c for c in convenios if c != "Cabergs ID"]
+
     data_capa = st.date_input("Data Emissão NFS-e", value=date.today(), key="capa_data")
 
     if st.button("Gerar Capa", type="primary"):
         try:
-            output_dir = st.session_state.get("output_dir") or "."
+            output_dir = "."
             token_path = os.path.join(output_dir, "token.json")
             client_secret_path = st.session_state.get("client_secret_path") or "client_secret.json"
 
@@ -45,7 +47,6 @@ def render() -> None:
                         spreadsheet_id=sheets[ano],
                         sheet_names=convenios,
                         data_emissao=str(data_capa),
-                        output_dir=output_dir,
                         client_secrets_path=client_secret_path,
                         token_path=token_path,
                     )

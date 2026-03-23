@@ -10,6 +10,7 @@ from .tab_nfse import render as render_nfse
 from .tab_capa import render as render_capa
 from .tab_unimed import render as render_unimed
 from .tab_glosa_mantida import render as render_glosa_mantida
+from .tab_ipe import render as render_ipe
 
 __all__ = [
     "render_convenios",
@@ -19,4 +20,5 @@ __all__ = [
     "render_capa",
     "render_unimed",
     "render_glosa_mantida",
+    "render_ipe",
 ]

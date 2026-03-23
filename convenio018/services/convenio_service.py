@@ -7,34 +7,28 @@ import os
 from datetime import date
 from typing import Any, Dict, List
 
-from googleapiclient.discovery import build
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from ..integrations.google_sheets import _get_credentials, _read_sheet_values, SCOPES
+from ..integrations.google_sheets import get_sheets_service, _read_sheet_values, SCOPES
 from ..utils.normalizers import _norm, _split_imposto_glosa
 from ..utils.parsers import _as_date
 from ..utils.dataframe_helpers import _build_header_map, _extract_required_fields, _find_col_idx
 from ..domain.csv_layouts import REMESSA_DATE_KEYS, RECURSO_DATE_KEYS, VALOR_RECURSADO_KEYS
 
-def processar_convenio_para_json(
+def processar_convenio(
     spreadsheet_id: str,
     sheet_name: str,
     data_pagamento: date,
-    output_dir: str = ".",
     client_secrets_path: str = "client_secret.json",
     token_path: str = "token.json",
-) -> str:
+) -> List[dict]:
     """
-    Lê a planilha e escreve um JSON só com as linhas cuja
+    Lê a planilha e retorna json/dicionário em memória com as linhas cuja
     Data pgto remessa == data_pagamento OU Data pgto recurso == data_pagamento.
     Colunas são resolvidas por NOME DE CABEÇALHO (case/acentos-insensitive).
     """
-    # garante pasta de saída
-    os.makedirs(output_dir, exist_ok=True)
 
-    creds = _get_credentials(client_secrets_path=client_secrets_path, token_path=token_path)
-    service = build("sheets", "v4", credentials=creds)
+    service = get_sheets_service(client_secrets_path=client_secrets_path, token_path=token_path)
 
     try:
         values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
@@ -84,14 +78,7 @@ def processar_convenio_para_json(
 
             out_rows.append(base_item)
 
-        # grava JSON
-        ymd = data_pagamento.strftime("%Y%m%d")
-        safe_sheet = "".join(c for c in sheet_name if c.isalnum() or c in ("_", "-")).strip() or "aba"
-        fpath = os.path.join(output_dir, f"saida_{safe_sheet}_{ymd}.json")
-        with open(fpath, "w", encoding="utf-8") as f:
-            json.dump(out_rows, f, ensure_ascii=False, indent=2)
-
-        return fpath
+        return out_rows
 
     except HttpError as e:
         raise RuntimeError(f"Erro ao acessar Google Sheets: {e}") from e

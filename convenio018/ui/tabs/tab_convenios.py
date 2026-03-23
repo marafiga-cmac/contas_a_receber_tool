@@ -26,7 +26,7 @@ from ...services.api import (
     compute_totals_remessas,
     marcar_encontrados_csv,
     processar_cabergs_arquivos,
-    processar_convenio_para_json,
+    processar_convenio,
     processar_csv_analise,
     render_form,
 )
@@ -136,7 +136,7 @@ def render() -> None:
             unidade = st.session_state.get("unidade") or "CMAP"
             sheets = SHEET_IDS[unidade]
 
-            output_dir = result.get("output_dir") or st.session_state.get("output_dir") or "."
+            output_dir = "."
             token_full_path = os.path.join(output_dir, "token.json")
 
             items: list[dict] = []
@@ -148,21 +148,16 @@ def render() -> None:
 
             for ano in ("2025", "2026"):
                 try:
-                    out_path_tmp = processar_convenio_para_json(
+                    tmp_items = processar_convenio(
                         spreadsheet_id=sheets[ano],
                         sheet_name=result["convenio"],
                         data_pagamento=result["data_pagamento"],
-                        output_dir=output_dir,
                         client_secrets_path=st.session_state.get("client_secret_path") or "client_secret.json",
                         token_path=token_full_path,
                     )
 
-                    with open(out_path_tmp, "r", encoding="utf-8") as f:
-                        tmp_items = json.load(f) or []
-
                     if tmp_items:
                         items.extend(tmp_items)
-                        out_paths.append(out_path_tmp)
                         anos_com_dados.append(ano)
 
                 except Exception as e:
@@ -177,9 +172,6 @@ def render() -> None:
                 return
 
             st.info(f"📄 Pagamentos encontrados em: {', '.join(anos_com_dados)}")
-
-            # Mantém um json_path “qualquer” só para referência
-            out_path = out_paths[-1] if out_paths else None
 
             # DataFrames filtrados pela data
             df_rem = make_remessas_df(items, result["data_pagamento"])
@@ -199,9 +191,7 @@ def render() -> None:
             st.session_state["recursos_df"] = df_rec
             st.session_state["recursos_totais"] = rec_totals
 
-            st.session_state["json_path"] = out_path
             st.session_state["modelo_csv"] = result.get("modelo_csv", "")
-            st.session_state["output_dir"] = result.get("output_dir", ".")
 
             st.success("✅ Dados processados! Abra as abas de relatório para visualizar / imprimir / exportar CSV.")
 

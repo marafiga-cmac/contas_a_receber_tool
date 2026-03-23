@@ -24,7 +24,23 @@ from convenio018.ui.tabs import (
     render_capa,
     render_unimed,
     render_glosa_mantida,
+    render_ipe,
 )
+
+
+def render_identificacao_convenios():
+    st.title("Identificação de Convênios")
+    tab_form, tab_remessas, tab_recursos = st.tabs([
+        "Convênios 018",
+        "Relatório de Remessas",
+        "Relatório de Recurso de Glosa"
+    ])
+    with tab_form:
+        render_convenios()
+    with tab_remessas:
+        render_remessas()
+    with tab_recursos:
+        render_recursos()
 
 
 def main() -> None:
@@ -39,40 +55,52 @@ def main() -> None:
     ensure_session_defaults()
     _sidebar = render_sidebar()
 
-    st.title("Identificação de Convênios")
+    paginas = {
+        "Rotinas Usuais": [
+            st.Page(
+                render_identificacao_convenios,
+                title="Identificação Convênios",
+                icon=":material/home:",
+                default=True,
+                url_path="identificacao-convenios",
+            ),
+            st.Page(
+                render_nfse,
+                title="Relatório NFS-e",
+                icon=":material/receipt_long:",
+                url_path="relatorio-nfse",
+            ),
+            st.Page(
+                render_capa,
+                title="Relatório Capa",
+                icon=":material/summarize:",
+                url_path="relatorio-capa",
+            ),
+            st.Page(
+                render_unimed,
+                title="Unimed",
+                icon=":material/medical_services:",
+                url_path="unimed",
+            ),
+            st.Page(
+                render_glosa_mantida,
+                title="Lançamentos Glosa Mantida",
+                icon=":material/fact_check:",
+                url_path="lancamentos-glosa",
+            ),
+        ],
+        "Rotinas Separadas": [
+            st.Page(
+                render_ipe,
+                title="Identificação Ipê",
+                icon=":material/account_balance:",
+                url_path="identificacao-ipe",
+            ),
+        ],
+    }
 
-    tab_form, tab_remessas, tab_recursos, tab_nfse, tab_capa, tab_unimed, tab_glosa_mantida = st.tabs(
-        [
-            "Convênios 018",
-            "Relatório de Remessas",
-            "Relatório de Recurso de Glosa",
-            "Relatório NFS-e",
-            "Relatório Capa",
-            "Unimed",
-            "Lançamentos Glosa Mantida",
-        ]
-    )
-
-    with tab_form:
-        render_convenios()
-
-    with tab_remessas:
-        render_remessas()
-
-    with tab_recursos:
-        render_recursos()
-
-    with tab_nfse:
-        render_nfse()
-
-    with tab_capa:
-        render_capa()
-
-    with tab_unimed:
-        render_unimed()
-
-    with tab_glosa_mantida:
-        render_glosa_mantida()
+    nav = st.navigation(paginas)
+    nav.run()
 
 
 if __name__ == "__main__":

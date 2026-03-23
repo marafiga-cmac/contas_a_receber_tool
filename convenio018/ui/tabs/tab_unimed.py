@@ -17,7 +17,7 @@ import streamlit as st
 
 from ...services.api import (
     gerar_csv_lancamentos_unimed_bytes,
-    processar_identificacao_unimed_para_json,
+    processar_identificacao_unimed,
 )
 
 
@@ -49,31 +49,24 @@ def render() -> None:
         key="unimed_threshold",
     )
 
-    output_dir = st.session_state.get("output_dir") or "."
-
     # 1) BOTÃO: gera JSON e guarda payload na sessão
     if st.button("Executar", type="primary", key="btn_exec_unimed"):
         if up_xlsx is None or up_csv is None:
             st.warning("Envie os dois arquivos (XLSX e CSV) antes de executar.")
         else:
             try:
-                out_path = processar_identificacao_unimed_para_json(
+                payload = processar_identificacao_unimed(
                     xlsx_file=up_xlsx,
                     csv_file=up_csv,
-                    output_dir=output_dir,
                     threshold=float(threshold),
                 )
 
-                with open(out_path, "r", encoding="utf-8") as f:
-                    payload = json.load(f)
-
                 st.session_state["unimed_payload"] = payload
-                st.session_state["unimed_json_path"] = out_path
 
                 # limpa editor antigo (porque gerou um JSON novo)
                 st.session_state.pop("unimed_df_edit", None)
 
-                st.success(f"✅ JSON gerado e carregado para edição: {out_path}")
+                st.success("✅ Tabela Unimed processada e carregada para edição!")
 
             except Exception as e:
                 st.error(f"Erro ao processar Identificação Unimed: {e}")
@@ -82,9 +75,8 @@ def render() -> None:
 
     # 2) EDITOR: fora do botão para não sumir ao clicar
     payload = st.session_state.get("unimed_payload")
-    json_path = st.session_state.get("unimed_json_path")
 
-    if payload and json_path:
+    if payload:
         st.caption(
             f"Preenchidos: {payload['meta']['entidades_preenchidas']} / "
             f"{payload['meta']['total_linhas_xlsx']} (threshold={payload['meta']['threshold']})"
@@ -133,25 +125,21 @@ def render() -> None:
                 preenchidas = sum(1 for it in payload.get("items", []) if str(it.get("Entidade") or "").strip() != "")
                 payload["meta"]["entidades_preenchidas"] = int(preenchidas)
 
-                with open(json_path, "w", encoding="utf-8") as f:
-                    json.dump(payload, f, ensure_ascii=False, indent=2)
-
                 st.session_state["unimed_payload"] = payload
                 st.session_state["unimed_df_edit"] = edited_df
 
-                st.success("✅ JSON atualizado com as alterações!")
+                st.success("✅ Memória atualizada com as alterações!")
                 st.rerun()
 
         with colB:
-            with open(json_path, "rb") as f:
-                st.download_button(
-                    "⬇️ Baixar JSON atualizado",
-                    data=f,
-                    file_name=os.path.basename(json_path),
-                    mime="application/json",
-                    use_container_width=True,
-                    key="dl_json_unimed",
-                )
+            st.download_button(
+                "⬇️ Baixar JSON atualizado",
+                data=json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                file_name="saida_identificacao_unimed.json",
+                mime="application/json",
+                use_container_width=True,
+                key="dl_json_unimed",
+            )
 
         nome_csv, csv_bytes = gerar_csv_lancamentos_unimed_bytes(payload)
 

@@ -107,6 +107,25 @@ def _build_print_html(titulo, convenio, data_str, table_html, total_pairs, logo_
       .print-btn:hover { background:#eef2f6; }
 
       .cardbar { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 20px; }
+      .total-footer {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .total-box {
+            min-width: 260px;
+            border-top: 2px solid #000;
+            padding-top: 8px;
+            text-align: right;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .total-label {
+            margin-right: 8px;
+        }
       @media (max-width:800px) { .cardbar { grid-template-columns: 1fr; } }
       .card { background:#f8fafc; border:1px solid #ccc; border-radius:6px; padding:10px; color:#000; }
 
@@ -158,7 +177,7 @@ def _build_print_html(titulo, convenio, data_str, table_html, total_pairs, logo_
     return html
 
 
-def _build_print_html_capa(titulo, data_str, table_html, logo_data_uri=None):
+def _build_print_html_capa(titulo, data_str, table_html, total_geral, logo_data_uri=None):
     """Cabeçalho no padrão FO-FAT 021 (print do usuário)."""
     css = """
     <style>
@@ -282,6 +301,13 @@ def _build_print_html_capa(titulo, data_str, table_html, logo_data_uri=None):
         </div>
 
         {table_html}
+
+        <div class='total-footer'>
+            <div class='total-box'>
+                <span class='total-label'>TOTAL:</span>
+                <span>{total_geral}</span>
+            </div>
+        </div>
 
         </div>
     </body>

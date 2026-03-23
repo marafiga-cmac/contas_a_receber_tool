@@ -11,12 +11,11 @@ import pandas as pd
 from ..utils.normalizers import _drop_nan_only_columns, _drop_rows_without_inicio, _norm, _safe_strip_lower
 from ..utils.parsers import _excel_col_idx
 
-def processar_identificacao_unimed_para_json(
+def processar_identificacao_unimed(
     xlsx_file,
     csv_file,
-    output_dir: str = ".",
     threshold: float = 0.78,
-) -> str:
+) -> dict:
     """
     Lê:
       - XLSX: cabeçalho em A5:F5 (header=4 no pandas), colunas incluem "Titular" e "Entidade"
@@ -27,13 +26,11 @@ def processar_identificacao_unimed_para_json(
       - Se score >= threshold, escreve o número da "entidade" do CSV em "Entidade" do XLSX.
       - Gera JSON estruturado com matches.
     """
-    import os, json, re
+    import re
     from difflib import SequenceMatcher
     import pandas as pd
     import numpy as np
     import datetime as dt
-
-    os.makedirs(output_dir, exist_ok=True)
 
     # ---------- helpers ----------
     def _norm_name(s: object) -> str:
@@ -185,9 +182,4 @@ def processar_identificacao_unimed_para_json(
         "items": out_items,
     }
 
-    fpath = os.path.join(output_dir, "saida_identificacao_unimed.json")
-    with open(fpath, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
-
-    return fpath
-
+    return payload

@@ -12,12 +12,12 @@ from ..integrations.google_sheets import _get_credentials, _read_sheet_values, S
 from ..utils.normalizers import _normalize_nf_number
 from ..utils.parsers import _as_date, _as_number
 from ..utils.dataframe_helpers import _find_col_idx
+from ..domain.csv_layouts import VALOR_RECURSADO_KEYS, RECURSO_DATE_KEYS
 
 def gerar_capa_nfse_por_data(
     spreadsheet_id: str,
     sheet_names: list[str],
     data_emissao: str,          # ISO YYYY-MM-DD
-    output_dir: str = ".",
     client_secrets_path: str = "client_secret.json",
     token_path: str = "token.json",
 ) -> str:
@@ -37,6 +37,7 @@ def gerar_capa_nfse_por_data(
     from datetime import date
     import pandas as pd
 
+    output_dir = "."
     os.makedirs(output_dir, exist_ok=True)
 
     target_date = date.fromisoformat(str(data_emissao))
@@ -45,7 +46,7 @@ def gerar_capa_nfse_por_data(
     service = build("sheets", "v4", credentials=creds)
 
     def _money_to_float(v) -> float:
-        if v is None or (isinstance(v, float) and pd.isna(v)):
+        if v is None or (isinstance(v, float) and pd.fsna(v)):
             return 0.0
         try:
             return float(v)
@@ -65,7 +66,12 @@ def gerar_capa_nfse_por_data(
     nfse_do_dia: set[tuple[str, str]] = set()  # (nfse, sheet_name)
 
     for sheet_name in (sheet_names or []):
-        values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
+        try:
+            values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
+        except Exception:
+            # Se a aba não existir, apenas ignora e segue para as demais
+            continue
+
         if not values:
             continue
 

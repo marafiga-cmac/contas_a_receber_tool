@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import streamlit as st
 
-from ..config import DEFAULT_CLIENT_SECRET, DEFAULT_OUTPUT_DIR
+from ..config import DEFAULT_CLIENT_SECRET
 from ..state import SESSION_DEFAULTS
 
 
@@ -19,7 +19,6 @@ class SidebarState:
     """Retorno tipado da sidebar para facilitar testes/manutenção."""
 
     unidade: str
-    output_dir: str
     client_secret_path: str
 
 
@@ -55,20 +54,6 @@ def render_sidebar() -> SidebarState:
         st.session_state["unidade"] = unidade
 
         st.markdown("---")
-        st.subheader("Pasta de saída")
-
-        output_dir = st.text_input(
-            "Onde salvar os arquivos gerados",
-            value=st.session_state.get("output_dir") or DEFAULT_OUTPUT_DIR,
-            help=(
-                "Exemplo: C:\\Relatorios_Faturamento "
-                "ou deixe '.' para salvar na mesma pasta do executável."
-            ),
-        ).strip()
-
-        st.session_state["output_dir"] = output_dir or DEFAULT_OUTPUT_DIR
-
-        st.markdown("---")
         st.subheader("Credenciais Google")
 
         cred_file = st.file_uploader(
@@ -96,6 +81,5 @@ def render_sidebar() -> SidebarState:
 
     return SidebarState(
         unidade=st.session_state["unidade"],
-        output_dir=st.session_state["output_dir"],
         client_secret_path=st.session_state["client_secret_path"],
     )

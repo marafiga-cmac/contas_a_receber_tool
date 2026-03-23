@@ -5,13 +5,14 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
+import streamlit as st
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-
 
 def _get_credentials(
     scopes: Optional[List[str]] = None,
@@ -63,6 +64,17 @@ def _get_credentials(
         _save(creds)
     return creds
 
+@st.cache_resource
+def get_sheets_service(client_secrets_path: str = "client_secret.json", token_path: str = "token.json"):
+    """
+    Retorna a instância 'service' global cacheadamente, economizando recursos de Build
+    e repetições de leitura OAuth2 em disco por cada clique.
+    """
+    creds = _get_credentials(client_secrets_path=client_secrets_path, token_path=token_path)
+    return build("sheets", "v4", credentials=creds)
+
+# hash_funcs ignorando o SDK complexo build('sheets') do cache.
+@st.cache_data(hash_funcs={"googleapiclient.discovery.Resource": lambda _: None}, ttl=900)
 def _read_sheet_values(service, spreadsheet_id: str, sheet_name: str, header_row: int = 10, **_ignore):
     sheet = service.spreadsheets()
     range_a1 = f"'{sheet_name}'!A{header_row}:ZZ"

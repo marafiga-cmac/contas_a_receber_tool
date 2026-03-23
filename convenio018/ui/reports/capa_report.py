@@ -36,6 +36,10 @@ def render_relatorio_capa(items: list[dict], data_emissao: date):
         return f"R$ {s}"
 
     df_show = df.copy()
+
+    total_geral_valor = pd.to_numeric(df["Valor"], errors="coerce").fillna(0.0).sum()
+    total_geral_fmt = _fmt_brl(total_geral_valor)
+
     df_show["Valor"] = df_show["Valor"].apply(_fmt_brl)
 
     st.dataframe(df_show, use_container_width=True, hide_index=True)
@@ -64,6 +68,7 @@ def render_relatorio_capa(items: list[dict], data_emissao: date):
         titulo=titulo,
         data_str=data_str,
         table_html=table_html,
+        total_geral=total_geral_fmt,
         logo_data_uri=st.session_state.get("logo_data_uri"),
     )
     components.html(html, height=850, scrolling=True)
