@@ -29,6 +29,7 @@ def processar_nfse(
 
     try:
         service = get_sheets_service(client_secrets_path=client_secrets_path, token_path=token_path)
+        _read_sheet_values.clear()  # Limpa cache para garantir que puxe NFs inseridas recém
         values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
     except HttpError as e:
         raise RuntimeError(f"Erro ao acessar Google Sheets: {e}") from e

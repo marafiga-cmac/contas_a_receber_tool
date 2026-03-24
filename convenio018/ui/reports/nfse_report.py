@@ -170,7 +170,7 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
 
     # --- DataFrame formatado para a grade do Streamlit ---
     df_fmt = df.copy()
-    for c in ["Valor envio XML - Remessa", "Valor NF", "Valor glosado", "Imposto", "Glosa mantida"]:
+    for c in ["Valor envio XML - Remessa", "Valor NF", "Valor recursado", "Valor glosado", "Imposto", "Glosa mantida"]:
         if c in df_fmt.columns:
             df_fmt[c] = df_fmt[c].apply(_fmt_money)
 
@@ -205,7 +205,7 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
 
     html = _build_print_html(
         titulo=titulo,
-        convenio="Todos",
+        convenio=convenio_hdr,
         data_str=data_str,          # aqui é a data escolhida
         table_html=table_html,
         total_pairs=total_pairs,

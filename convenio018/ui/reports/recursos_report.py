@@ -28,6 +28,7 @@ def render_relatorio_recursos(
         st.dataframe(
             df, hide_index=True, use_container_width=True,
             column_config={
+                "Valor recursado": st.column_config.NumberColumn(format="R$ %.2f"),
                 "Valor glosado": st.column_config.NumberColumn(format="R$ %.2f"),
                 "Valor pago": st.column_config.NumberColumn(format="R$ %.2f"),
                 "Imposto": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -81,7 +82,7 @@ def render_relatorio_recursos(
         )
     dfp = _df_for_print(
         df,
-        ["Valor glosado", "Valor pago", "Imposto", "Glosa mantida"],
+        ["Valor recursado", "Valor glosado", "Valor pago", "Imposto", "Glosa mantida"],
     )
     table_html = dfp.to_html(index=False, border=0, escape=False)
 
