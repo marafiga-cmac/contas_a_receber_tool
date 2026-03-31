@@ -25,6 +25,7 @@ from convenio018.ui.tabs import (
     render_unimed,
     render_glosa_mantida,
     render_ipe,
+    render_controle,
 )
 
 
@@ -56,6 +57,14 @@ def main() -> None:
     _sidebar = render_sidebar()
 
     paginas = {
+        "Controle": [
+            st.Page(
+                render_controle,
+                title="Emissão e Identificação",
+                icon=":material/monitoring:",
+                url_path="emissao-identificacao",
+            ),
+        ],
         "Rotinas Usuais": [
             st.Page(
                 render_identificacao_convenios,

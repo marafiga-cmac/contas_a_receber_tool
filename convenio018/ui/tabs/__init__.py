@@ -11,6 +11,7 @@ from .tab_capa import render as render_capa
 from .tab_unimed import render as render_unimed
 from .tab_glosa_mantida import render as render_glosa_mantida
 from .tab_ipe import render as render_ipe
+from .tab_controle import render as render_controle
 
 __all__ = [
     "render_convenios",
@@ -21,4 +22,5 @@ __all__ = [
     "render_unimed",
     "render_glosa_mantida",
     "render_ipe",
+    "render_controle",
 ]

@@ -81,3 +81,9 @@ def _read_sheet_values(service, spreadsheet_id: str, sheet_name: str, header_row
     resp = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_a1).execute()
     return resp.get("values", [])
 
+@st.cache_data(hash_funcs={"googleapiclient.discovery.Resource": lambda _: None}, ttl=900)
+def get_sheet_names(service, spreadsheet_id: str, **_ignore) -> List[str]:
+    """Retorna os nomes de todas as abas de uma planilha."""
+    sheet_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheets = sheet_metadata.get('sheets', '')
+    return [s.get("properties", {}).get("title", "") for s in sheets]

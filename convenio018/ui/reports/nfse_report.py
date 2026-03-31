@@ -41,30 +41,53 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
             df[c] = None
     df = df[cols].copy()
 
-    # Ajustes especiais quando modo = "numero" (prefixo RG, etc.)
-    if st.session_state.get("nfse_modo") == "numero":
-        aux = pd.DataFrame(items or [])
-        if "_nfse_match_kind" in aux.columns:
-            mask_recurso = aux["_nfse_match_kind"].isin(["recurso", "nf_recurso"])
+    # Determina máscaras de recurso e remessa
+    aux = pd.DataFrame(items or [])
+    mask_recurso = pd.Series(False, index=df.index)
+    if "_nfse_match_kind" in aux.columns:
+        mask_recurso = aux["_nfse_match_kind"].isin(["recurso", "nf_recurso", "rg"])
+    
+    # Se houver Ref. começando com RG, também é recurso
+    if "Ref." in df.columns:
+        mask_recurso = mask_recurso | df["Ref."].astype(str).str.upper().str.startswith("RG -")
+    
+    mask_remessa = ~mask_recurso
 
-            # prefixo "RG - " em Ref.
-            if "Ref." in df.columns:
-                df.loc[mask_recurso, "Ref."] = df.loc[mask_recurso, "Ref."].apply(
-                    lambda s: f"RG - {s}"
-                    if (str(s or "").strip()[:4].upper() != "RG -")
-                    else s
-                )
+    # 1. Substituição de valores: troca "Valor envio XML - Remessa" por "Valor glosado" (original) nas linhas recurso
+    if "Valor envio XML - Remessa" in df.columns and "Valor glosado" in aux.columns:
+        df.loc[mask_recurso, "Valor envio XML - Remessa"] = aux.loc[mask_recurso, "Valor glosado"].values
 
-            # "Valor NF" vira "Valor recursado" nas linhas recurso
-            if "Valor NF" in df.columns:
-                if "Valor recursado" in df.columns:
-                    df.loc[mask_recurso, "Valor NF"] = df.loc[mask_recurso, "Valor recursado"]
-                elif "Valor recursado" in aux.columns:
-                    df.loc[mask_recurso, "Valor NF"] = aux.loc[mask_recurso, "Valor recursado"].values
+    # 2. Cabeçalho Dinâmico
+    nome_col_xml = "Valor envio XML - Remessa"
+    if mask_recurso.any() and mask_remessa.any():
+        nome_col_xml = "Valor Glosa / Valor XML"
+    elif mask_recurso.any():
+        nome_col_xml = "Valor de Glosa do Recurso"
 
-            # Zera o Valor glosado apenas nas linhas de recurso
-            if "Valor glosado" in df.columns:
-                df.loc[mask_recurso, "Valor glosado"] = 0.0
+    if nome_col_xml != "Valor envio XML - Remessa":
+        df.rename(columns={"Valor envio XML - Remessa": nome_col_xml}, inplace=True)
+
+    # 3. Ajustes especiais (prefixo RG, Valor NF)
+    if mask_recurso.any():
+        # prefixo "RG - " em Ref.
+        if "Ref." in df.columns:
+            df.loc[mask_recurso, "Ref."] = df.loc[mask_recurso, "Ref."].apply(
+                lambda s: f"RG - {s}"
+                if (str(s or "").strip()[:4].upper() != "RG -")
+                else s
+            )
+
+        # "Valor NF" vira "Valor recursado" nas linhas recurso
+        if "Valor NF" in df.columns:
+            val_rec_key = "Valor recursado"
+            if val_rec_key in df.columns:
+                df.loc[mask_recurso, "Valor NF"] = df.loc[mask_recurso, val_rec_key]
+            elif val_rec_key in aux.columns:
+                df.loc[mask_recurso, "Valor NF"] = aux.loc[mask_recurso, val_rec_key].values
+
+        # Zera o Valor glosado apenas nas linhas de recurso
+        if "Valor glosado" in df.columns:
+            df.loc[mask_recurso, "Valor glosado"] = 0.0
 
     # --- helpers de moeda ---
     def _to_float_any(v):
@@ -89,8 +112,8 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
 
     # --- totais ---
     total_envio_xml = float(
-        df["Valor envio XML - Remessa"].apply(_to_float_any).sum()
-    ) if "Valor envio XML - Remessa" in df.columns else 0.0
+        df[nome_col_xml].apply(_to_float_any).sum()
+    ) if nome_col_xml in df.columns else 0.0
     total_valor_nf = float(
         df["Valor NF"].apply(_to_float_any).sum()
     ) if "Valor NF" in df.columns else 0.0
@@ -170,7 +193,7 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
 
     # --- DataFrame formatado para a grade do Streamlit ---
     df_fmt = df.copy()
-    for c in ["Valor envio XML - Remessa", "Valor NF", "Valor recursado", "Valor glosado", "Imposto", "Glosa mantida"]:
+    for c in [nome_col_xml, "Valor NF", "Valor recursado", "Valor glosado", "Imposto", "Glosa mantida"]:
         if c in df_fmt.columns:
             df_fmt[c] = df_fmt[c].apply(_fmt_money)
 
