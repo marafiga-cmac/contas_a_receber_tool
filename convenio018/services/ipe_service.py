@@ -107,6 +107,8 @@ def extrair_detalhado_consultas_ipe(pdf_file):
             if extr:
                 text += extr + " "
     
+    # Remove aspas e vírgulas que possam introduzir lixo no nome e vazar para a string
+    text = re.sub(r'[",]', ' ', text)
     # Troca quebras de linha por espaços e remove espaços duplos
     text_limpo = re.sub(r'\s+', ' ', text.replace('\n', ' '))
 
@@ -119,23 +121,22 @@ def extrair_detalhado_consultas_ipe(pdf_file):
     for i in range(0, len(parts) - 1, 2):
         bloco = parts[i]
         
-        # Pega a Matrícula (13 dígitos) que é o "meio" do registro
-        match_mat = re.search(r'\b(\d{13})\b', bloco)
-        if not match_mat:
-            continue
+        # Identifica o fim da zona de nome/matrícula (para antes do horário ou cancelamento)
+        match_end = re.search(r'(\d{2}:\d{2}:\d{2}|CANCELADA)', bloco, re.IGNORECASE)
         
-        matricula = match_mat.group(1)
-        before_mat, after_mat = bloco.split(matricula, 1)
-        
-        # EXTRAIR NOME (pega as palavras em maiúsculo logo antes da matrícula)
-        nome = "NÃO IDENTIFICADO"
-        match_nome = re.search(r'(?:^|\s)\d{2,3}\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)$', before_mat)
-        if match_nome:
-            nome = match_nome.group(1).strip()
+        if match_end:
+            ident_zone = bloco[:match_end.start()].strip()
+            after_mat = bloco[match_end.start():]
+            
+            # Remove matrícula (13 dígitos)
+            ident_zone = re.sub(r'\b\d{13}\b', '', ident_zone)
+            # Remove índice inicial e qualquer outro número (Dia, etc)
+            nome_completo = re.sub(r'\d+', '', ident_zone).strip()
+            # Limpa espaços duplos
+            nome = re.sub(r'\s+', ' ', nome_completo)
         else:
-            match_nome_fallback = re.search(r'([A-ZÀ-Ÿ\s]{5,})$', before_mat)
-            if match_nome_fallback:
-                nome = match_nome_fallback.group(1).strip()
+            nome = "NÃO IDENTIFICADO"
+            after_mat = bloco
         
         # EXTRAIR STATUS, VLR IPE E N.NOTA
         status_cancelado = False
