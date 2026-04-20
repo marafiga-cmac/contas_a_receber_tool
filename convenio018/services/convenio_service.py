@@ -31,6 +31,7 @@ def processar_convenio(
     service = get_sheets_service(client_secrets_path=client_secrets_path, token_path=token_path)
 
     try:
+        _read_sheet_values.clear()
         values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
         if not values:
             raise RuntimeError("Nenhum dado retornado. Verifique a aba e o ID da planilha.")

@@ -12,7 +12,7 @@ from .print_templates import LOGO_PATH, _build_print_html, _path_to_data_uri
 def render_relatorio_nfse_para_impressao(items: list[dict]):
     modo_nfse = (st.session_state.get("nfse_modo") or "").lower()
 
-    # Colunas base
+    # Colunas base (sempre incluir Nº NF para consistência)
     if modo_nfse == "data":
         cols = [
             "Nº Remessa",
@@ -28,7 +28,7 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
         cols = [
             "Nº Remessa",
             "Ref.",
-            "Valor envio XML - Remessa",
+            "Nº NF",
             "Valor NF",
             "Valor glosado",
             "Imposto",
@@ -77,13 +77,18 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
                 else s
             )
 
-        # "Valor NF" vira "Valor recursado" nas linhas recurso
+        # "Valor NF" vira "Valor NF RG" (ou Valor recursado) nas linhas recurso
         if "Valor NF" in df.columns:
+            val_rg_key = "Valor NF RG"
             val_rec_key = "Valor recursado"
-            if val_rec_key in df.columns:
-                df.loc[mask_recurso, "Valor NF"] = df.loc[mask_recurso, val_rec_key]
+            
+            # Tenta pegar de Valor NF RG primeiro, se não tiver, tenta Valor recursado
+            if val_rg_key in aux.columns:
+                df.loc[mask_recurso, "Valor NF"] = aux.loc[mask_recurso, val_rg_key].apply(_to_float_any).values
+            elif val_rec_key in df.columns:
+                df.loc[mask_recurso, "Valor NF"] = df.loc[mask_recurso, val_rec_key].apply(_to_float_any)
             elif val_rec_key in aux.columns:
-                df.loc[mask_recurso, "Valor NF"] = aux.loc[mask_recurso, val_rec_key].values
+                df.loc[mask_recurso, "Valor NF"] = aux.loc[mask_recurso, val_rec_key].apply(_to_float_any).values
 
         # Zera o Valor glosado apenas nas linhas de recurso
         if "Valor glosado" in df.columns:
@@ -140,41 +145,32 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
     )
     referencia = st.session_state.get("nfse_context") or ""
 
-    # ✅ DF completo (vem do JSON), para garantir Nº NF / NF recurso na descrição
-    df_csv = pd.DataFrame(items or [])
-    for c in ["Nº Remessa", "Ref.", "Nº NF", "NF recurso", "Valor NF", "_nfse_match_kind"]:
-        if c not in df_csv.columns:
-            df_csv[c] = None
-
-    # ✅ fallback: se Nº NF estiver vazio, usa NF recurso
-    df_csv["Nº NF"] = (
-        df_csv["Nº NF"].astype(str).replace({"None": "", "nan": ""})
-    )
-    mask_vazio = df_csv["Nº NF"].str.strip().eq("")
-    df_csv.loc[mask_vazio, "Nº NF"] = df_csv.loc[mask_vazio, "NF recurso"]
-
+    # ✅ DF para CSV (baseado no df processado acima)
     df_csv = df.copy()
     aux_all = pd.DataFrame(items or [])
-    for extra_col in ["Nº NF", "NF recurso", "Valor recursado", "_nfse_match_kind"]:
+    
+    # Adiciona colunas extras do aux_all que não estão no df base, de forma segura
+    for extra_col in ["NF recurso", "Valor NF RG", "Valor recursado", "_nfse_match_kind"]:
         if extra_col in aux_all.columns:
-            try:
-                df_csv[extra_col] = aux_all[extra_col].values
-            except Exception:
-                df_csv[extra_col] = aux_all[extra_col]
+            df_csv[extra_col] = aux_all[extra_col].values
+
+    # ✅ fallback: se Nº NF estiver vazio, usa NF recurso (se disponível)
+    if "Nº NF" in df_csv.columns:
+        df_csv["Nº NF"] = df_csv["Nº NF"].astype(str).replace({"None": "", "nan": ""})
+        
+    if "NF recurso" in df_csv.columns:
+        mask_vazio_nf = df_csv["Nº NF"].str.strip().eq("")
+        mask_tem_rec = df_csv["NF recurso"].astype(str).str.strip().ne("") & df_csv["NF recurso"].notna()
+        df_csv.loc[mask_vazio_nf & mask_tem_rec, "Nº NF"] = df_csv.loc[mask_vazio_nf & mask_tem_rec, "NF recurso"]
 
     # Se for RG, garante que a coluna Nº NF (para descrição) tenha o número de "NF recurso"
+    mask_rg = df_csv.get("_nfse_match_kind", "").astype(str).str.lower().isin(["recurso","rg"])
+    if "Ref." in df_csv.columns:
+        mask_rg = mask_rg | df_csv["Ref."].astype(str).str.lower().str.startswith("rg")
+    
     if "NF recurso" in df_csv.columns:
-        mask_rg = df_csv.get("_nfse_match_kind", "").astype(str).str.lower().isin(["recurso","rg"])
-        if "Ref." in df_csv.columns:
-            mask_rg = mask_rg | df_csv["Ref."].astype(str).str.lower().str.startswith("rg")
-        if "Nº NF" not in df_csv.columns:
-            df_csv["Nº NF"] = ""
-        df_csv.loc[
-            mask_rg
-            & df_csv["NF recurso"].notna()
-            & (df_csv["NF recurso"].astype(str).str.strip() != ""),
-            "Nº NF"
-        ] = df_csv.loc[mask_rg, "NF recurso"]
+        mask_has_rec = df_csv["NF recurso"].notna() & (df_csv["NF recurso"].astype(str).str.strip() != "")
+        df_csv.loc[mask_rg & mask_has_rec, "Nº NF"] = df_csv.loc[mask_rg & mask_has_rec, "NF recurso"]
 
     fname_nfse, csv_bytes_nfse = gerar_csv_nfse_lancamentos_bytes(
         df_nfse=df_csv,

@@ -7,6 +7,8 @@ from io import BytesIO
 
 import pandas as pd
 
+from typing import Dict, Optional
+
 # ---- Streamlit é opcional aqui (rodamos sem falhar fora do Streamlit) ----
 try:
     import streamlit as st  # para ler session_state se existir
@@ -16,6 +18,7 @@ except Exception:  # pragma: no cover
 from ..domain.csv_layouts import CSV_COLS, CSV_DELIM
 from ..utils.formatting import _ensure_len, _fmt_ref_mmYYYY, _fmt_amount_csv, _slugify
 from ..utils.parsers import _as_number
+from ..domain.convenio_rules import get_csv_convenio_overrides
 
 def gerar_csv_glosa_mantida_bytes(
     items: list[dict],
@@ -48,13 +51,11 @@ def gerar_csv_glosa_mantida_bytes(
         except Exception:
             prefs, ovrs, unidade = {}, {}, ""
 
-    header_first_row = prefs.get("header_first_row")
-    if not header_first_row:
-        header_first_row = (
-            ("1941", "Clínica Adventista de Curitiba - IASBS")
-            if (unidade or "").upper() == "CMAC"
-            else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
-        )
+    header_first_row = (
+        ("1941", "Clínica Adventista de Curitiba - IASBS")
+        if (unidade or "").upper() == "CMAC"
+        else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    )
 
     # Mesmo SUBCONTA_MAP usado nas outras funções
     SUBCONTA_MAP = {
@@ -85,6 +86,10 @@ def gerar_csv_glosa_mantida_bytes(
     rows = [_ensure_len(list(header_first_row), CSV_COLS)]
 
     total = 0.0
+
+    # Se estamos no CMAC, garantimos o uso das regras do CMAC (evita dados residuais do CMAP na sessão)
+    if (unidade or "").upper() == "CMAC":
+        ovrs = get_csv_convenio_overrides("CMAC")
     for it in (items or []):
         try:
             convenio = str(it.get("convenio") or "").strip()
@@ -171,16 +176,19 @@ def gerar_csv_lancamentos_bytes(
         except Exception:
             prefs, ovrs, unidade = {}, {}, ""
 
-    oconv: dict = {}
     if isinstance(ovrs, dict):
         oconv = ovrs.get(selected_convenio, {}) or {}
 
-    header_first_row = prefs.get("header_first_row")
-    if not header_first_row:
-        if (unidade or "").upper() == "CMAC":
-            header_first_row = ("1941", "Clínica Adventista de Curitiba - IASBS")
-        else:
-            header_first_row = ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    # Se estamos no CMAC, garantimos o uso das regras do CMAC (evita dados residuais do CMAP na sessão)
+    if (unidade or "").upper() == "CMAC":
+        ovrs = get_csv_convenio_overrides("CMAC")
+        oconv = ovrs.get(selected_convenio, {}) or {}
+
+    header_first_row = (
+        ("1941", "Clínica Adventista de Curitiba - IASBS")
+        if (unidade or "").upper() == "CMAC"
+        else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    )
 
     deposito_subconta_banco = (
         oconv.get("deposito_subconta_banco")
@@ -199,7 +207,7 @@ def gerar_csv_lancamentos_bytes(
         "Amil": "39","Assefaz": "27","Banco Central": "43","Cassi": "26","Doctor": "54",
         "Embratel": "18","Humana": "55","GEAP": "19","Geap": "19",
         "Postal Saúde": "29","Prevent Senior": "91","Saúde Caixa": "15", "Mediservice": "16", "Life": "45",
-        "Gente Saúde": "59", "Ipê Saúde": "12",
+        "Gente Saúde": "59", "Ipê Saúde": "12", "Voam": "30",
     }
     DEPOSITO_SUFFIX = {
         "Afpergs": "Assoc Func Publicos", "Proasa": "Proasa Programa Adven",
@@ -209,7 +217,7 @@ def gerar_csv_lancamentos_bytes(
         "Humana": "Humana Saude Ltda","GEAP": "Geap Autogestao Em S","Geap": "Geap Autogestao Em S",
         "Postal Saúde": "Postal Saúde","Prevent Senior": "Prevent Senior Privat","Saúde Caixa": "Saúde Caixa",
         "Mediservice": "Ac. Mediservice Operadora Planos Sau","Life": "Ac. Life Empresarial Saúde Ltda",
-        "Gente Saúde": "Ac. Gente Clube - Benefi", "Ipê Saúde": "Ac. Ipê Saúde",
+        "Gente Saúde": "Ac. Gente Clube - Benefi", "Ipê Saúde": "Ac. Ipê Saúde", "Voam": "Volvo Do Brasil Veicu",
     }
 
     subconta_convenio = oconv.get("subconta_convenio") or SUBCONTA_MAP.get(selected_convenio, "13")
@@ -375,14 +383,19 @@ def gerar_csv_recursos_bytes(
         except Exception:
             prefs, ovrs, unidade = {}, {}, ""
 
-    oconv: dict = {}
     if isinstance(ovrs, dict):
         oconv = ovrs.get(selected_convenio, {}) or {}
 
-    header_first_row = prefs.get("header_first_row")
-    if not header_first_row:
-        header_first_row = ("1941", "Clínica Adventista de Curitiba - IASBS") if (unidade or "").upper() == "CMAC" \
-                           else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    # Se estamos no CMAC, garantimos o uso das regras do CMAC (evita dados residuais do CMAP na sessão)
+    if (unidade or "").upper() == "CMAC":
+        ovrs = get_csv_convenio_overrides("CMAC")
+        oconv = ovrs.get(selected_convenio, {}) or {}
+
+    header_first_row = (
+        ("1941", "Clínica Adventista de Curitiba - IASBS")
+        if (unidade or "").upper() == "CMAC"
+        else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    )
 
     deposito_subconta_banco = (
         oconv.get("deposito_subconta_banco")
@@ -399,7 +412,7 @@ def gerar_csv_recursos_bytes(
         "Amil": "39","Assefaz": "27","Banco Central": "43","Cassi": "26","Doctor": "54",
         "Embratel": "18","Humana": "55","GEAP": "19","Geap": "19",
         "Postal Saúde": "29","Prevent Senior": "91","Saúde Caixa": "15",
-        "Medservice": "16", "Life": "45", "Gente Saúde": "59", "Capesesp": "20", "Ipê Saúde": "12",
+        "Medservice": "16", "Life": "45", "Gente Saúde": "59", "Capesesp": "20", "Ipê Saúde": "12", "Voam": "30",
     }
     DEPOSITO_SUFFIX = {
         "Afpergs": "Assoc Func Publicos", "Proasa": "Proasa",
@@ -410,7 +423,7 @@ def gerar_csv_recursos_bytes(
         "Postal Saúde": "Postal Saúde","Prevent Senior": "Prevent Senior Privat","Saúde Caixa": "Saúde Caixa",
         "Mediservice": "Ac. Mediservice Operadora Planos Sau",
         "Life": "Ac. Life Empresarial Saúde Ltda",
-        "Gente Saúde": "Ac. Gente Clube - Benefi", "Capesesp": "Caixa De Previdencia", "Ipê Saúde": "Ipê Saúde",
+        "Gente Saúde": "Ac. Gente Clube - Benefi", "Capesesp": "Caixa De Previdencia", "Ipê Saúde": "Ipê Saúde", "Voam": "Volvo Do Brasil Veicu",
     }
 
     subconta_convenio = oconv.get("subconta_convenio") or SUBCONTA_MAP.get(selected_convenio, "13")
@@ -529,17 +542,19 @@ def gerar_csv_nfse_lancamentos_bytes(
         except Exception:
             prefs, ovrs, unidade = {}, {}, ""
 
-    oconv: dict = {}
     if isinstance(ovrs, dict):
         oconv = ovrs.get(selected_convenio, {}) or {}
 
-    header_first_row = prefs.get("header_first_row")
-    if not header_first_row:
-        header_first_row = (
-            ("1941", "Clínica Adventista de Curitiba - IASBS")
-            if (unidade or "").upper() == "CMAC"
-            else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
-        )
+    # Se estamos no CMAC, garantimos o uso das regras do CMAC (evita dados residuais do CMAP na sessão)
+    if (unidade or "").upper() == "CMAC":
+        ovrs = get_csv_convenio_overrides("CMAC")
+        oconv = ovrs.get(selected_convenio, {}) or {}
+
+    header_first_row = (
+        ("1941", "Clínica Adventista de Curitiba - IASBS")
+        if (unidade or "").upper() == "CMAC"
+        else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    )
 
     # Mesmo SUBCONTA_MAP usado nas outras funções
     SUBCONTA_MAP = {
@@ -562,6 +577,7 @@ def gerar_csv_nfse_lancamentos_bytes(
         "Gente Saúde": "59",
         "Capesesp": "20",
         "Ipê Saúde": "12",
+        "Voam": "30",
     }
 
     subconta_convenio = (
@@ -623,10 +639,10 @@ def gerar_csv_nfse_lancamentos_bytes(
         nf_to_use = nf_recurso if (is_rg and nf_recurso) else (nf_normal or nf_recurso)
 
         # Valor a lançar:
-        # - RG => Valor recursado
+        # - RG => Valor NF RG (prioridade) ou Valor recursado
         # - normal => Valor NF
         if is_rg:
-            valor_lanc = _as_number(r.get("Valor recursado"))
+            valor_lanc = _as_number(r.get("Valor NF RG") or r.get("Valor recursado"))
         else:
             valor_lanc = _as_number(r.get("Valor NF"))
 
@@ -713,13 +729,11 @@ def gerar_csv_lancamentos_unimed_bytes(
         # padrão CMAC (e qualquer outro caso)
         cred_subconta = "1122"
 
-    header_first_row = prefs.get("header_first_row")
-    if not header_first_row:
-        # mesmo padrão usado no resto do backend.py
-        if (unidade or "").upper() == "CMAC":
-            header_first_row = ("1941", "Clínica Adventista de Curitiba - IASBS")
-        else:
-            header_first_row = ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    header_first_row = (
+        ("1941", "Clínica Adventista de Curitiba - IASBS")
+        if (unidade or "").upper() == "CMAC"
+        else ("1841", "Clínica Adventista de Porto Alegre - IASBS")
+    )
 
     def _nfc(s):
         return unicodedata.normalize("NFC", s) if isinstance(s, str) else s

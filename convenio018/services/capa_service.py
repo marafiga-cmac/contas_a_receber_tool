@@ -65,6 +65,7 @@ def gerar_capa_nfse_por_data(
     acc: dict[tuple[str, str], dict[str, float]] = {}
     nfse_do_dia: set[tuple[str, str]] = set()  # (nfse, sheet_name)
 
+    _read_sheet_values.clear()
     for sheet_name in (sheet_names or []):
         try:
             values = _read_sheet_values(service, spreadsheet_id, sheet_name, header_row=10)
@@ -102,6 +103,7 @@ def gerar_capa_nfse_por_data(
             fallback_idx=None,
         )
         idx_data_pgto_recurso = _find_col_idx(headers, RECURSO_DATE_KEYS, fallback_idx=None)
+        idx_data_emissao_nf = _find_col_idx(headers, ["data emissão nf.", "data emissao nf"], fallback_idx=None)
 
         # -------------------------
         # 1ª PASSAGEM: NFSe emitidas no dia (remessas "normais")
@@ -139,6 +141,28 @@ def gerar_capa_nfse_por_data(
 
                 nfse_do_dia.add((str(nf_recurso), str(sheet_name)))
         
+        # -------------------------
+        # 1D) Marca NF alvo por "Data Emissão Nf." (NF gerada hoje)
+        # -------------------------
+        if idx_data_emissao_nf is not None:
+            for row in rows:
+                if idx_data_emissao_nf >= len(row):
+                    continue
+                
+                dem = _as_date(row[idx_data_emissao_nf])
+                if not dem or dem != target_date:
+                    continue
+                
+                # Prioriza NF recurso se existir, senão usa a principal
+                nf_alvo = None
+                if idx_nf_recurso is not None and idx_nf_recurso < len(row):
+                    nf_alvo = _normalize_nf_number(row[idx_nf_recurso])
+                if not nf_alvo and idx_num_nf >= 0 and idx_num_nf < len(row):
+                    nf_alvo = _normalize_nf_number(row[idx_num_nf])
+                
+                if nf_alvo:
+                    nfse_do_dia.add((str(nf_alvo), str(sheet_name)))
+
         # -------------------------
         # 1C) Soma Valor NF de TODAS as linhas cuja Nº NF esteja no conjunto alvo
         #      (assim NF que entrou no set alvo também traz todas as remessas)

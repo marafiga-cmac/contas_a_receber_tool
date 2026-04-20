@@ -29,7 +29,8 @@ def _is_value_field(out_name: str) -> bool:
 def _extract_required_fields(row_dict: Dict[str, Any], headers_map: Dict[str, str]) -> Dict[str, Any]:
     out_names = {
         "Nº Remessa","Ref.","Nº NF","NF recurso",
-        "Valor envio XML - Remessa","Valor pgto","Valor glosado","Imposto","Glosa mantida","Valor pago"
+        "Valor envio XML - Remessa","Valor pgto","Valor glosado","Imposto","Glosa mantida","Valor pago",
+        "Valor NF", "Valor NF RG"
     }
     out: Dict[str, Any] = {k: None for k in out_names}
     for norm_key, out_name in REQUIRED_FIELDS.items():

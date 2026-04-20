@@ -25,7 +25,25 @@ from ..services.remessa_service import compute_totals_remessas, make_remessas_df
 from ..services.unimed_service import processar_identificacao_unimed
 from ..utils.dataframe_helpers import *  # noqa: F401,F403
 from ..utils.formatting import *  # noqa: F401,F403
+from ..utils.formatting import (
+    _ensure_len,
+    _fmt_amount_csv,
+    _fmt_ref_mmYYYY,
+    _slugify,
+)
 from ..utils.normalizers import *  # noqa: F401,F403
+from ..utils.normalizers import (
+    _norm,
+    _normalize_nf_number,
+    _only_digits,
+    _safe_strip_lower,
+)
 from ..utils.parsers import *  # noqa: F401,F403
+from ..utils.parsers import (
+    _as_date,
+    _as_number,
+    _read_csv_robusto,
+)
+
 
 __all__ = [name for name in globals() if not name.startswith("__")]

@@ -22,6 +22,7 @@ REQUIRED_FIELDS = {
     "imposto": "Imposto", "imp.": "Imposto", "impostos": "Imposto",
     "glosa mantida": "Glosa mantida", "glosa mant.": "Glosa mantida",
     "valor pago": "Valor pago",
+    "valor nf rg": "Valor NF RG",
     "valor nf": "Valor NF",
     "valor da nf": "Valor NF",
     "vlr nf": "Valor NF",
@@ -45,11 +46,12 @@ REMESSA_DATE_KEYS = [
     "dt pgto remessa", "dt remessa"
 ]
 RECURSO_DATE_KEYS = [
+    "data emissão nf.", "data emissao nf",
     "data pgto recurso", "data pagamento recurso",
     "data recurso", "data pgto rec", "dt pgto recurso"
 ]
 VALOR_RECURSADO_KEYS = [
-    "valor recursado",  # priorizado
+    "valor nf rg", "valor recursado",  # priorizado
     "valor recurso", "valor recurso (rec)", "valor glosado"
 ]
 
