@@ -57,6 +57,16 @@ def render() -> None:
                         
                 except ValueError as ve:
                     st.error(f"Erro de Validação: {ve}")
+                    # Log técnico para diagnóstico
+                    try:
+                        import pdfplumber
+                        uploaded_file.seek(0)
+                        with pdfplumber.open(uploaded_file) as pdf:
+                            preview = pdf.pages[0].extract_text()[:500] if pdf.pages else "PDF Vazio ou sem texto extraível"
+                            with st.expander("🔍 Ver log técnico (Conteúdo Lido)"):
+                                st.code(preview)
+                    except:
+                        pass
                 except Exception as ex:
                     st.error(f"Erro fatal interpretando o PDF: {ex}")
 
