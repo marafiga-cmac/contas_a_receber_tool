@@ -107,13 +107,11 @@ def render() -> None:
         if "ipe_fase2_df" in st.session_state:
             df_fase2 = st.session_state["ipe_fase2_df"]
             
-            # Lista de Documentos validados da Fase 1 (Garante formatação segura de String)
-            notas_fase1 = [str(x).strip() for x in df_fase1["Nro Doc"].tolist()]
+            # Lista de Documentos validados da Fase 1
+            notas_fase1 = df_fase1["Nro Doc"].astype(str).tolist()
             
             # Filtros e Cruzamento
-            df_fase2["N.Nota_Join"] = df_fase2["N.Nota"].astype(str).str.strip()
-            
-            mask_validado = df_fase2["N.Nota_Join"].isin(notas_fase1) & (~df_fase2["Status_Cancelado"])
+            mask_validado = df_fase2["N.Nota"].isin(notas_fase1) & (~df_fase2["Status_Cancelado"])
             df_validados = df_fase2[mask_validado].copy()
             df_n_encontrados = df_fase2[~mask_validado].copy()
             
@@ -124,7 +122,7 @@ def render() -> None:
             st.markdown("#### Resultados do Cruzamento:")
             opcao_visao = st.radio(
                 "Selecione a visão de dados:",
-                ["✅ Atendimentos Validados", "⚠️ Tabela Suspeitos"],
+                ["✅ Atendimentos Validados", "⚠️ Não Encontrados / Cancelados"],
                 horizontal=True,
                 label_visibility="collapsed"
             )
@@ -133,5 +131,5 @@ def render() -> None:
                 st.caption(f"Exibindo **{len(df_validados)}** consultas com N.Nota validadas contra o Demonstrativo e não canceladas.")
                 st.dataframe(df_validados[cols_exibicao], use_container_width=True, hide_index=True)
             else:
-                st.caption(f"Exibindo **{len(df_n_encontrados)}** consultas suspeitas: sem correspondência no Demonstrativo ou marcadas como CANCELADA.")
+                st.caption(f"Exibindo **{len(df_n_encontrados)}** consultas sem correspondência no Demonstrativo ou marcadas como CANCELADA.")
                 st.dataframe(df_n_encontrados[cols_exibicao], use_container_width=True, hide_index=True)

@@ -107,65 +107,45 @@ def extrair_detalhado_consultas_ipe(pdf_file):
             if extr:
                 text += extr + " "
     
-    # 1. Limpeza de Boilerplate (Ignorar Ruído)
-    text = re.sub(r'\d{2}/\d{2}/\d{4}, \d{2}:\d{2} IPERGS - Consultas autorizadas', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'Relação de consultas autorizadas em \d{2}/\d{4}', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'Credenciado: INST ADVENTISTA SUL BRASILEIRA DE SAUDE', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'www\.ipe\.rs\.gov\.br/cgi-bin/webgen2\.cgi', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'\b\d/\d\b', '', text)
-    text = re.sub(r'\bRetorna\b', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'Soma do valor IPE [\d\.,]+', '', text, flags=re.IGNORECASE)
-    text = text.replace("Para segurança da informação o CPF pode ser confirmado aqui", "")
-
-    # Remove aspas e vírgulas que possam introduzir lixo no nome e vazar para a string
-    text = re.sub(r'[",]', ' ', text)
     # Troca quebras de linha por espaços e remove espaços duplos
     text_limpo = re.sub(r'\s+', ' ', text.replace('\n', ' '))
 
-    # 2. Nova Lógica de Extração de Pacientes (Fatia por CPF)
+    # Fatia o texto a cada CPF encontrado (o CPF marca o fim exato de um registro)
     parts = re.split(r'(\d{3}\.\d{3}\.\d{3}-\d{2})', text_limpo)
     
     documentos = []
     
+    # Itera de 2 em 2 (bloco de texto + CPF correspondente)
     for i in range(0, len(parts) - 1, 2):
         bloco = parts[i]
         
+        # Pega a Matrícula (13 dígitos) que é o "meio" do registro
         match_mat = re.search(r'\b(\d{13})\b', bloco)
         if not match_mat:
             continue
-            
+        
         matricula = match_mat.group(1)
-        antes, depois = bloco.split(matricula, 1)
+        before_mat, after_mat = bloco.split(matricula, 1)
         
-        # --- 1. EXTRAÇÃO BLINDADA DO NOME ---
-        # Parte 1 do Nome (fica imediatamente ANTES da matrícula)
-        # Limpa números e pontuações da string anterior para não quebrar a sequência
-        txt_antes = re.sub(r'[\d/:\.,\-]', ' ', antes)
-        # Pesquisa de trás pra frente: captura apenas a sequência de letras MAIÚSCULAS e espaços
-        match_p1 = re.search(r'([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)$', txt_antes)
-        name_p1 = match_p1.group(1).strip() if match_p1 else ""
+        # EXTRAIR NOME (pega as palavras em maiúsculo logo antes da matrícula)
+        nome = "NÃO IDENTIFICADO"
+        match_nome = re.search(r'(?:^|\s)\d{2,3}\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)$', before_mat)
+        if match_nome:
+            nome = match_nome.group(1).strip()
+        else:
+            match_nome_fallback = re.search(r'([A-ZÀ-Ÿ\s]{5,})$', before_mat)
+            if match_nome_fallback:
+                nome = match_nome_fallback.group(1).strip()
         
-        # Parte 2 do Nome (em alguns registros, o nome continua DEPOIS da matrícula)
-        # Verifica se a string 'depois' começa imediatamente com letras MAIÚSCULAS
-        match_p2 = re.match(r'^\s*([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)', depois)
-        name_p2 = match_p2.group(1).strip() if match_p2 else ""
-        
-        # Junta as duas partes e limpa excesso de espaços
-        nome = f"{name_p1} {name_p2}".strip()
-        nome = re.sub(r'\s+', ' ', nome)
-        
-        if not nome:
-            nome = "NÃO IDENTIFICADO"
-
-        # --- 2. EXTRAÇÃO DOS DADOS DE ATENDIMENTO ---
+        # EXTRAIR STATUS, VLR IPE E N.NOTA
         status_cancelado = False
-        if "CANCELADA" in depois.upper():
+        if "CANCELADA" in after_mat.upper():
             status_cancelado = True
             vlr_ipe = "CANCELADA"
             n_nota = "-"
         else:
-            # Busca o Valor IPE e N.Nota ancorados no final do bloco, antes da Ref/PINPAD
-            match_valores = re.search(r'(\d+,\d{2})\s+(\d{4,8})\s+\d+\s+[A-Za-z]\s*$', depois)
+            # Pega Valor IPE e N.Nota que ficam antes do Ref e PINPAD no fim do bloco
+            match_valores = re.search(r'(\d+,\d{2})\s+(\d{4,8})\s+\d+\s+[A-Za-z]\s*$', after_mat)
             if match_valores:
                 vlr_ipe = match_valores.group(1)
                 n_nota = match_valores.group(2)
@@ -173,14 +153,14 @@ def extrair_detalhado_consultas_ipe(pdf_file):
                 vlr_ipe = "0,00"
                 n_nota = "-"
                 
+        # EXTRAIR HORA E DIA
         hora, dia = "", ""
-        match_hora = re.search(r'(\d{2}:\d{2}:\d{2}:\d{1,2})', depois)
+        match_hora = re.search(r'(\d{2}:\d{2}:\d{2}:\d{1,2})', after_mat)
         if match_hora:
             hora = match_hora.group(1)
             
-        depois_no_hour = depois.replace(hora, '') if hora else depois
-        # Dia é o número de 2 dígitos isolado
-        match_dia = re.search(r'(?:^|\s)(\d{2})(?=\s)', depois_no_hour)
+        after_mat_no_hour = after_mat.replace(hora, '') if hora else after_mat
+        match_dia = re.search(r'(?:^|\s)(\d{2})(?=\s)', after_mat_no_hour)
         if match_dia:
             dia = match_dia.group(1)
 
