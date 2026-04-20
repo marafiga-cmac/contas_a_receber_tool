@@ -132,7 +132,7 @@ def extrair_detalhado_consultas_ipe(pdf_file) -> pd.DataFrame:
         m_data = re.search(r"(\d{2}/\d{2}/\d{4})", linha_clean)
         m_hora = re.search(r"(\d{2}:\d{2})", linha_clean)
         m_nota = re.search(r"\b(\d{2}\.?\d{3})\b", linha_clean)
-        m_valor = re.search(r"(\d{1,3}(?:\.\d{3})*,\d{2}|(?i)CANCELADA)", linha_clean)
+        m_valor = re.search(r"(\d{1,3}(?:\.\d{3})*,\d{2}|CANCELADA)", linha_clean, flags=re.IGNORECASE)
         
         # Se contêm os pilares de um registro, inicia nova extração
         if m_data and m_hora and m_nota:
@@ -154,7 +154,7 @@ def extrair_detalhado_consultas_ipe(pdf_file) -> pd.DataFrame:
                 resto = resto.replace(m_valor.group(1), "", 1)
                 
             # Limpa resíduos (R$, Hífen, espaços sobrando)
-            resto = re.sub(r"(?i)\bR\$\b", "", resto)
+            resto = re.sub(r"\bR\$\b", "", resto, flags=re.IGNORECASE)
             resto = re.sub(r"^[-\s]+", "", resto)
             nome = re.sub(r"\s+", " ", resto).strip()
             
@@ -170,7 +170,7 @@ def extrair_detalhado_consultas_ipe(pdf_file) -> pd.DataFrame:
             # Caso não seja o início de um novo registro, pode ser a continuação do "Nome" multilinha
             if registro_atual:
                 # Ignora palavras comuns de cabeçalhos/rodapés nas páginas subsequentes
-                if re.search(r"(?i)Total|Página|Consultas|IPE Saúde|Demonstrativo|Nº\s*Nota|Data|Hora|Valor|Beneficiário", linha_clean):
+                if re.search(r"Total|Página|Consultas|IPE Saúde|Demonstrativo|Nº\s*Nota|Data|Hora|Valor|Beneficiário", linha_clean, flags=re.IGNORECASE):
                     continue
                 
                 # Anexa o que sobrou ao nome da pessoa
