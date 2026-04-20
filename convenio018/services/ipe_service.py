@@ -97,93 +97,80 @@ def extrair_dados_demonstrativo_ipe(pdf_file) -> dict:
         },
         "df_documentos": df_docs
     }
+def extrair_detalhado_consultas_ipe(pdf_file):
+    text = ""
+    # Evita problemas de leitura caso o ponteiro não esteja no início
+    pdf_file.seek(0)
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            extr = page.extract_text()
+            if extr:
+                text += extr + " "
+    
+    # Troca quebras de linha por espaços e remove espaços duplos
+    text_limpo = re.sub(r'\s+', ' ', text.replace('\n', ' '))
 
-def extrair_detalhado_consultas_ipe(pdf_file) -> pd.DataFrame:
-    """
-    Extrai dados do PDF detalhado de Consultas Autorizadas (Fase 2).
-    Captura Nome (linhas compostas), Dia, Hora, Vlr IPE e N.Nota.
-    Retorna Pandas DataFrame com colunas:
-    N.Nota, Nome, Dia, Hora, Vlr IPE, Status_Cancelado
-    """
-    texto_completo = ""
-    try:
-        pdf_file.seek(0)
-        with pdfplumber.open(pdf_file) as pdf:
-            for page in pdf.pages:
-                texto_pagina = page.extract_text()
-                if texto_pagina:
-                    texto_completo += texto_pagina + "\n"
-    except Exception as e:
-        raise ValueError(f"Não foi possível processar o arquivo PDF detalhado: {str(e)}")
-
-    # Ignora frase de segurança do PDF do IPE
-    texto_completo = texto_completo.replace("Para segurança da informação o CPF pode ser confirmado aqui", "")
+    # Fatia o texto a cada CPF encontrado (o CPF marca o fim exato de um registro)
+    parts = re.split(r'(\d{3}\.\d{3}\.\d{3}-\d{2})', text_limpo)
     
-    linhas = texto_completo.split('\n')
+    documentos = []
     
-    registros = []
-    registro_atual = None
-    
-    for linha in linhas:
-        linha_clean = linha.strip()
-        if not linha_clean:
+    # Itera de 2 em 2 (bloco de texto + CPF correspondente)
+    for i in range(0, len(parts) - 1, 2):
+        bloco = parts[i]
+        
+        # Pega a Matrícula (13 dígitos) que é o "meio" do registro
+        match_mat = re.search(r'\b(\d{13})\b', bloco)
+        if not match_mat:
             continue
-            
-        m_data = re.search(r"(\d{2}/\d{2}/\d{4})", linha_clean)
-        m_hora = re.search(r"(\d{2}:\d{2})", linha_clean)
-        m_nota = re.search(r"\b(\d{2}\.?\d{3})\b", linha_clean)
-        m_valor = re.search(r"(\d{1,3}(?:\.\d{3})*,\d{2}|CANCELADA)", linha_clean, flags=re.IGNORECASE)
         
-        # Se contêm os pilares de um registro, inicia nova extração
-        if m_data and m_hora and m_nota:
-            if registro_atual:
-                registros.append(registro_atual)
-                
-            dia = m_data.group(1)
-            hora = m_hora.group(1)
-            nota = m_nota.group(1).replace('.', '').strip()
-            valor_raw = m_valor.group(1) if m_valor else "0,00"
-            status_cancelado = "CANCELADA" in valor_raw.upper()
-            
-            # Subtrai as partes já localizadas para sobrar apenas o Nome na string
-            resto = linha_clean
-            resto = resto.replace(dia, "", 1)
-            resto = resto.replace(hora, "", 1)
-            resto = resto.replace(m_nota.group(1), "", 1)
-            if m_valor:
-                resto = resto.replace(m_valor.group(1), "", 1)
-                
-            # Limpa resíduos (R$, Hífen, espaços sobrando)
-            resto = re.sub(r"\bR\$\b", "", resto, flags=re.IGNORECASE)
-            resto = re.sub(r"^[-\s]+", "", resto)
-            nome = re.sub(r"\s+", " ", resto).strip()
-            
-            registro_atual = {
-                "N.Nota": nota,
-                "Nome": nome,
-                "Dia": dia,
-                "Hora": hora,
-                "Vlr IPE": valor_raw,
-                "Status_Cancelado": status_cancelado
-            }
+        matricula = match_mat.group(1)
+        before_mat, after_mat = bloco.split(matricula, 1)
+        
+        # EXTRAIR NOME (pega as palavras em maiúsculo logo antes da matrícula)
+        nome = "NÃO IDENTIFICADO"
+        match_nome = re.search(r'(?:^|\s)\d{2,3}\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)$', before_mat)
+        if match_nome:
+            nome = match_nome.group(1).strip()
         else:
-            # Caso não seja o início de um novo registro, pode ser a continuação do "Nome" multilinha
-            if registro_atual:
-                # Ignora palavras comuns de cabeçalhos/rodapés nas páginas subsequentes
-                if re.search(r"Total|Página|Consultas|IPE Saúde|Demonstrativo|Nº\s*Nota|Data|Hora|Valor|Beneficiário", linha_clean, flags=re.IGNORECASE):
-                    continue
-                
-                # Anexa o que sobrou ao nome da pessoa
-                registro_atual["Nome"] += " " + linha_clean
-                registro_atual["Nome"] = re.sub(r"\s+", " ", registro_atual["Nome"]).strip()
-                
-    # Adicionar o último acumulador ao fim do laço
-    if registro_atual:
-        registros.append(registro_atual)
+            match_nome_fallback = re.search(r'([A-ZÀ-Ÿ\s]{5,})$', before_mat)
+            if match_nome_fallback:
+                nome = match_nome_fallback.group(1).strip()
         
-    df = pd.DataFrame(registros)
-    if df.empty:
-        df = pd.DataFrame(columns=["N.Nota", "Nome", "Dia", "Hora", "Vlr IPE", "Status_Cancelado"])
-    
-    return df
+        # EXTRAIR STATUS, VLR IPE E N.NOTA
+        status_cancelado = False
+        if "CANCELADA" in after_mat.upper():
+            status_cancelado = True
+            vlr_ipe = "CANCELADA"
+            n_nota = "-"
+        else:
+            # Pega Valor IPE e N.Nota que ficam antes do Ref e PINPAD no fim do bloco
+            match_valores = re.search(r'(\d+,\d{2})\s+(\d{4,8})\s+\d+\s+[A-Za-z]\s*$', after_mat)
+            if match_valores:
+                vlr_ipe = match_valores.group(1)
+                n_nota = match_valores.group(2)
+            else:
+                vlr_ipe = "0,00"
+                n_nota = "-"
+                
+        # EXTRAIR HORA E DIA
+        hora, dia = "", ""
+        match_hora = re.search(r'(\d{2}:\d{2}:\d{2}:\d{1,2})', after_mat)
+        if match_hora:
+            hora = match_hora.group(1)
+            
+        after_mat_no_hour = after_mat.replace(hora, '') if hora else after_mat
+        match_dia = re.search(r'(?:^|\s)(\d{2})(?=\s)', after_mat_no_hour)
+        if match_dia:
+            dia = match_dia.group(1)
 
+        documentos.append({
+            "N.Nota": str(n_nota).replace('.', '').strip(),
+            "Nome": nome,
+            "Dia": dia,
+            "Hora": hora,
+            "Vlr IPE": vlr_ipe,
+            "Status_Cancelado": status_cancelado
+        })
+        
+    return pd.DataFrame(documentos)
