@@ -107,36 +107,46 @@ def extrair_detalhado_consultas_ipe(pdf_file):
             if extr:
                 text += extr + " "
     
+    # 1. Limpeza de Boilerplate (Ignorar Ruído)
+    text = re.sub(r'\d{2}/\d{2}/\d{4}, \d{2}:\d{2} IPERGS - Consultas autorizadas', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Relação de consultas autorizadas em \d{2}/\d{4}', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Credenciado: INST ADVENTISTA SUL BRASILEIRA DE SAUDE', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'www\.ipe\.rs\.gov\.br/cgi-bin/webgen2\.cgi', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b\d/\d\b', '', text)
+    text = re.sub(r'\bRetorna\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Soma do valor IPE [\d\.,]+', '', text, flags=re.IGNORECASE)
+    text = text.replace("Para segurança da informação o CPF pode ser confirmado aqui", "")
+
     # Remove aspas e vírgulas que possam introduzir lixo no nome e vazar para a string
     text = re.sub(r'[",]', ' ', text)
     # Troca quebras de linha por espaços e remove espaços duplos
     text_limpo = re.sub(r'\s+', ' ', text.replace('\n', ' '))
 
-    # Fatia o texto a cada CPF encontrado (o CPF marca o fim exato de um registro)
+    # 2. Nova Lógica de Extração de Pacientes (Fatia por CPF)
     parts = re.split(r'(\d{3}\.\d{3}\.\d{3}-\d{2})', text_limpo)
     
     documentos = []
     
-    # Itera de 2 em 2 (bloco de texto + CPF correspondente)
     for i in range(0, len(parts) - 1, 2):
         bloco = parts[i]
         
-        # Identifica o fim da zona de nome/matrícula (para antes do horário ou cancelamento)
-        match_end = re.search(r'(\d{2}:\d{2}:\d{2}|CANCELADA)', bloco, re.IGNORECASE)
+        # O CPF foi nossa âncora de fim. A matrícula de 13 dígitos será a nossa âncora central.
+        match_mat = re.search(r'\b(\d{13})\b', bloco)
         
-        if match_end:
-            ident_zone = bloco[:match_end.start()].strip()
-            after_mat = bloco[match_end.start():]
+        if not match_mat:
+            continue
             
-            # Remove matrícula (13 dígitos)
-            ident_zone = re.sub(r'\b\d{13}\b', '', ident_zone)
-            # Remove índice inicial e qualquer outro número (Dia, etc)
-            nome_completo = re.sub(r'\d+', '', ident_zone).strip()
-            # Limpa espaços duplos
-            nome = re.sub(r'\s+', ' ', nome_completo)
-        else:
+        matricula = match_mat.group(1)
+        # Corta a string exatamente onde a matrícula está
+        before_mat, after_mat = bloco.split(matricula, 1)
+        
+        # Nome Completo: capturar tudo ANTES da matrícula, limpando o índice
+        nome_zone = before_mat.strip()
+        # Remove o índice inicial numérico (ex: "01", "12")
+        nome_zone = re.sub(r'^\d+\s*', '', nome_zone)
+        nome = re.sub(r'\s+', ' ', nome_zone).strip()
+        if not nome:
             nome = "NÃO IDENTIFICADO"
-            after_mat = bloco
         
         # EXTRAIR STATUS, VLR IPE E N.NOTA
         status_cancelado = False
