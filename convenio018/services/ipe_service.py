@@ -61,19 +61,24 @@ def extrair_dados_demonstrativo_ipe(pdf_file) -> dict:
     irf_retido = buscar_total(r"IRF\s+Retido")
     liquido_receber = buscar_total(r"L[íi]quido\s+a\s+receber")
 
-    # 2. Tabela de Documentos (Linha a linha)
+    # 2. Tabela de Documentos
     documentos = []
-    # Regex: Início opcional com 0s, captura números com pontos (limparemos depois), 
-    # salta conteúdo vago ate encontrar o valor financeiro no final da linha.
-    doc_pattern = re.compile(r"^(?:0{0,3})?(\d{2,}[\.\d]*)\s+.*\s+(\d{1,3}(?:\.\d{3})*,\d{2})$")
+    # Novo padrão sugerido: captura Grupo 1 (Doc) e Grupo 2 (Valor no final $)
+    # O padrão (\d{2}\.?\d{3}) captura formatos como 50.002 ou 50002
+    doc_pattern = re.compile(r"(\d{2}\.?\d{3})\s+.*?([\d\.]*,\d{2})$")
     
     for linha in texto_completo.split('\n'):
         linha_clean = linha.strip()
-        m_doc = doc_pattern.match(linha_clean)
+        if not linha_clean:
+            continue
+            
+        m_doc = doc_pattern.search(linha_clean)
         if m_doc:
-            # Limpeza do Nro Doc: remove pontos conforme requisitado
+            # Grupo 1: Nro Doc (limpa o ponto)
             nro_doc = m_doc.group(1).replace('.', '')
+            # Grupo 2: Valor Pago (converte para float para manter o DF tipado)
             valor_pago = _converter_valor(m_doc.group(2))
+            
             documentos.append({"Nro Doc": nro_doc, "Valor Pago": valor_pago})
 
     df_docs = pd.DataFrame(documentos)
