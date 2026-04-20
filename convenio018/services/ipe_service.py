@@ -130,33 +130,42 @@ def extrair_detalhado_consultas_ipe(pdf_file):
     for i in range(0, len(parts) - 1, 2):
         bloco = parts[i]
         
-        # O CPF foi nossa âncora de fim. A matrícula de 13 dígitos será a nossa âncora central.
         match_mat = re.search(r'\b(\d{13})\b', bloco)
-        
         if not match_mat:
             continue
             
         matricula = match_mat.group(1)
-        # Corta a string exatamente onde a matrícula está
-        before_mat, after_mat = bloco.split(matricula, 1)
+        antes, depois = bloco.split(matricula, 1)
         
-        # Nome Completo: capturar tudo ANTES da matrícula, limpando o índice
-        nome_zone = before_mat.strip()
-        # Remove o índice inicial numérico (ex: "01", "12")
-        nome_zone = re.sub(r'^\d+\s*', '', nome_zone)
-        nome = re.sub(r'\s+', ' ', nome_zone).strip()
+        # --- 1. EXTRAÇÃO BLINDADA DO NOME ---
+        # Parte 1 do Nome (fica imediatamente ANTES da matrícula)
+        # Limpa números e pontuações da string anterior para não quebrar a sequência
+        txt_antes = re.sub(r'[\d/:\.,\-]', ' ', antes)
+        # Pesquisa de trás pra frente: captura apenas a sequência de letras MAIÚSCULAS e espaços
+        match_p1 = re.search(r'([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)$', txt_antes)
+        name_p1 = match_p1.group(1).strip() if match_p1 else ""
+        
+        # Parte 2 do Nome (em alguns registros, o nome continua DEPOIS da matrícula)
+        # Verifica se a string 'depois' começa imediatamente com letras MAIÚSCULAS
+        match_p2 = re.match(r'^\s*([A-ZÀ-Ÿ][A-ZÀ-Ÿ\s]+)', depois)
+        name_p2 = match_p2.group(1).strip() if match_p2 else ""
+        
+        # Junta as duas partes e limpa excesso de espaços
+        nome = f"{name_p1} {name_p2}".strip()
+        nome = re.sub(r'\s+', ' ', nome)
+        
         if not nome:
             nome = "NÃO IDENTIFICADO"
-        
-        # EXTRAIR STATUS, VLR IPE E N.NOTA
+
+        # --- 2. EXTRAÇÃO DOS DADOS DE ATENDIMENTO ---
         status_cancelado = False
-        if "CANCELADA" in after_mat.upper():
+        if "CANCELADA" in depois.upper():
             status_cancelado = True
             vlr_ipe = "CANCELADA"
             n_nota = "-"
         else:
-            # Pega Valor IPE e N.Nota que ficam antes do Ref e PINPAD no fim do bloco
-            match_valores = re.search(r'(\d+,\d{2})\s+(\d{4,8})\s+\d+\s+[A-Za-z]\s*$', after_mat)
+            # Busca o Valor IPE e N.Nota ancorados no final do bloco, antes da Ref/PINPAD
+            match_valores = re.search(r'(\d+,\d{2})\s+(\d{4,8})\s+\d+\s+[A-Za-z]\s*$', depois)
             if match_valores:
                 vlr_ipe = match_valores.group(1)
                 n_nota = match_valores.group(2)
@@ -164,14 +173,14 @@ def extrair_detalhado_consultas_ipe(pdf_file):
                 vlr_ipe = "0,00"
                 n_nota = "-"
                 
-        # EXTRAIR HORA E DIA
         hora, dia = "", ""
-        match_hora = re.search(r'(\d{2}:\d{2}:\d{2}:\d{1,2})', after_mat)
+        match_hora = re.search(r'(\d{2}:\d{2}:\d{2}:\d{1,2})', depois)
         if match_hora:
             hora = match_hora.group(1)
             
-        after_mat_no_hour = after_mat.replace(hora, '') if hora else after_mat
-        match_dia = re.search(r'(?:^|\s)(\d{2})(?=\s)', after_mat_no_hour)
+        depois_no_hour = depois.replace(hora, '') if hora else depois
+        # Dia é o número de 2 dígitos isolado
+        match_dia = re.search(r'(?:^|\s)(\d{2})(?=\s)', depois_no_hour)
         if match_dia:
             dia = match_dia.group(1)
 
