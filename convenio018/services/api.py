@@ -21,7 +21,7 @@ from .nfse_service import processar_nfse
 from .recurso_service import compute_totals_recursos, make_recursos_df
 from .remessa_service import compute_totals_remessas, make_remessas_df
 from .unimed_service import processar_identificacao_unimed
-from .ipe_service import extrair_dados_demonstrativo_ipe
+from .ipe_service import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe
 from ..database.db_manager import save_dataframe_to_sqlite
 
 __all__ = [
@@ -40,6 +40,7 @@ __all__ = [
     "processar_csv_analise",
     "processar_identificacao_unimed",
     "extrair_dados_demonstrativo_ipe",
+    "extrair_detalhado_consultas_ipe",
     "processar_nfse",
     "render_form",
     "render_relatorio_capa",

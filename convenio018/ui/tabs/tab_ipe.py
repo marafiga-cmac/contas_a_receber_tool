@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ...services.api import extrair_dados_demonstrativo_ipe
+from ...services.api import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe
 
 def render() -> None:
     st.subheader("Identificação Ipê")
@@ -23,6 +23,9 @@ def render() -> None:
 
     if uploaded_file is not None:
         if st.button("Executar Leitura", type="primary", key="btn_ipe_processar"):
+            # Limpa estado da Fase 2 ao rodar um novo arquivo da Fase 1
+            st.session_state.pop("ipe_fase2_df", None)
+            
             with st.spinner("Processando Demonstrativo..."):
                 try:
                     resultado = extrair_dados_demonstrativo_ipe(uploaded_file)
@@ -70,4 +73,63 @@ def render() -> None:
                 except Exception as ex:
                     st.error(f"Erro fatal interpretando o PDF: {ex}")
 
-    st.markdown("---")
+    st.divider()
+
+    # ==========================================
+    # FASE 2: Cruzamento
+    # ==========================================
+    if "ipe_deposito_df" in st.session_state:
+        df_fase1 = st.session_state["ipe_deposito_df"]
+        
+        st.subheader("Fase 2: Cruzamento de Consultas Autorizadas")
+        st.markdown(
+            "Faça o upload do PDF com as Consultas Autorizadas (Detalhamento). "
+            "O sistema fará o cruzamento com o Demonstrativo lido acima, verificando as notas."
+        )
+        
+        up_fase2 = st.file_uploader(
+            "Enviar Consultas Autorizadas PDF",
+            type=["pdf"],
+            accept_multiple_files=False,
+            key="ipe_fase2_uploader"
+        )
+        
+        if up_fase2 is not None:
+            if st.button("Cruzar Dados", type="primary", key="btn_ipe_fase2"):
+                with st.spinner("Lendo detalhamento paciente por paciente. Isso pode demorar alguns segundos..."):
+                    try:
+                        df_fase2 = extrair_detalhado_consultas_ipe(up_fase2)
+                        st.session_state["ipe_fase2_df"] = df_fase2
+                        st.success("✅ Extrato detalhado lido com sucesso!")
+                    except Exception as ex:
+                        st.error(f"Erro fatal extraindo Consultas Autorizadas: {ex}")
+                        
+        if "ipe_fase2_df" in st.session_state:
+            df_fase2 = st.session_state["ipe_fase2_df"]
+            
+            # Lista de Documentos validados da Fase 1
+            notas_fase1 = df_fase1["Nro Doc"].astype(str).tolist()
+            
+            # Filtros e Cruzamento
+            mask_validado = df_fase2["N.Nota"].isin(notas_fase1) & (~df_fase2["Status_Cancelado"])
+            df_validados = df_fase2[mask_validado].copy()
+            df_n_encontrados = df_fase2[~mask_validado].copy()
+            
+            # Colunas exigidas
+            cols_exibicao = ["N.Nota", "Nome", "Dia", "Hora", "Vlr IPE"]
+            
+            # View Status
+            st.markdown("#### Resultados do Cruzamento:")
+            opcao_visao = st.radio(
+                "Selecione a visão de dados:",
+                ["✅ Atendimentos Validados", "⚠️ Não Encontrados / Cancelados"],
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+            
+            if opcao_visao.startswith("✅"):
+                st.caption(f"Exibindo **{len(df_validados)}** consultas com N.Nota validadas contra o Demonstrativo e não canceladas.")
+                st.dataframe(df_validados[cols_exibicao], use_container_width=True, hide_index=True)
+            else:
+                st.caption(f"Exibindo **{len(df_n_encontrados)}** consultas sem correspondência no Demonstrativo ou marcadas como CANCELADA.")
+                st.dataframe(df_n_encontrados[cols_exibicao], use_container_width=True, hide_index=True)
