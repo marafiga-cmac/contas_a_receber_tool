@@ -25,6 +25,7 @@ from convenio018.ui.tabs import (
     render_unimed,
     render_glosa_mantida,
     render_ipe,
+    render_cabergs,
     render_controle,
 )
 
@@ -104,6 +105,12 @@ def main() -> None:
                 title="Identificação Ipê",
                 icon=":material/account_balance:",
                 url_path="identificacao-ipe",
+            ),
+            st.Page(
+                render_cabergs,
+                title="Identificação CABERGS",
+                icon=":material/health_and_safety:",
+                url_path="identificacao-cabergs",
             ),
         ],
     }

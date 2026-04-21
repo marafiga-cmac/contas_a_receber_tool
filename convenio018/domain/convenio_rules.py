@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 CONVENIOS_CMAP = [
-    "Afpergs", "Amil", "Assefaz", "Banco Central", "Bradesco", "Cabergs", "Cabergs ID",
+    "Afpergs", "Amil", "Assefaz", "Banco Central", "Bradesco", "Cabergs",
     "CarePlus", "Cassi", "Doctor", "Embratel", "Humana", "GEAP", "Gente Saúde",
     "Life", "Mediservice", "Notredame", "Postal Saúde", "Prevent Senior",
     "Proasa", "Saúde Caixa", "Sul America", "Capesesp", "Ipê Saúde", 

@@ -24,10 +24,7 @@ from ...services.api import (
     make_remessas_df,
     compute_totals_recursos,
     compute_totals_remessas,
-    marcar_encontrados_csv,
-    processar_cabergs_arquivos,
     processar_convenio,
-    processar_csv_analise,
     render_form,
 )
 
@@ -38,91 +35,7 @@ def render() -> None:
     # Form principal (usa unidade da sidebar, já salva em session_state)
     result = render_form()
 
-    # ------------------------------------------------------------------
-    # CABERGS (CMAP): fluxo automático (sem botões do Google Sheets)
-    # ------------------------------------------------------------------
-    unidade = st.session_state.get("unidade") or "CMAP"
-    is_cabergs = (unidade == "CMAP") and (
-        str(result.get("convenio") or "").strip().lower() == "cabergs id"
-    )
 
-    if is_cabergs:
-        cabergs_files = result.get("cabergs_xls_files") or []
-
-        if cabergs_files:
-            try:
-                df_cabergs = processar_cabergs_arquivos(cabergs_files)
-                st.subheader("Prévia do CABERGS (cabeçalho ajustado)")
-                st.caption("Aplicado: B→C, AB→AF, AQ→AR | Extraído: G5 (Remessa) e X5 (Competência)")
-                st.dataframe(df_cabergs, use_container_width=True)
-                st.session_state["cabergs_df_xls"] = df_cabergs
-            except Exception as e:
-                st.error(f"Erro ao processar CABERGS: {e}")
-                st.session_state["cabergs_df_xls"] = pd.DataFrame()
-        else:
-            st.info("Anexe o(s) arquivo(s) XLS/XLSX do CABERGS para exibir a tabela.")
-            st.session_state["cabergs_df_xls"] = pd.DataFrame()
-
-        st.markdown("---")
-        st.subheader("Arquivo CSV para Análise (automático)")
-
-        csv_file = st.file_uploader("Envie o arquivo CSV", type=["csv"], key="cabergs_csv_upload")
-
-        if csv_file is not None:
-            try:
-                df_csv = processar_csv_analise(csv_file)
-                st.session_state["cabergs_df_csv"] = df_csv
-            except Exception as e:
-                st.error(f"Erro ao processar CSV: {e}")
-                st.session_state["cabergs_df_csv"] = pd.DataFrame()
-        else:
-            st.session_state["cabergs_df_csv"] = st.session_state.get("cabergs_df_csv") or pd.DataFrame()
-
-        # Marcação no CSV — só após clicar em "Executar"
-        df_xls_ss = st.session_state.get("cabergs_df_xls")
-        df_csv_ss = st.session_state.get("cabergs_df_csv")
-
-        st.markdown("---")
-
-        if st.button("Executar", type="primary", key="btn_exec_mark_csv"):
-            st.session_state["cabergs_exec_mark"] = True
-
-        if st.session_state.get("cabergs_exec_mark"):
-            if (
-                isinstance(df_xls_ss, pd.DataFrame)
-                and not df_xls_ss.empty
-                and isinstance(df_csv_ss, pd.DataFrame)
-                and not df_csv_ss.empty
-            ):
-                try:
-                    df_csv_marked = marcar_encontrados_csv(df_xls_ss, df_csv_ss, flag_col="Encontrado")
-                    st.session_state["cabergs_df_csv"] = df_csv_marked
-                except Exception as e:
-                    st.error(f"Erro ao marcar encontrados no CSV: {e}")
-            else:
-                st.warning("Anexe e processe os dois arquivos (XLS/XLSX e CSV) antes de executar.")
-
-        # Sempre mostra a prévia do CSV (com checkbox)
-        df_csv_show = st.session_state.get("cabergs_df_csv")
-        if isinstance(df_csv_show, pd.DataFrame) and not df_csv_show.empty:
-            if "Encontrado" not in df_csv_show.columns:
-                df_csv_show = df_csv_show.copy()
-                df_csv_show.insert(0, "Encontrado", False)
-
-            disabled_cols = [c for c in df_csv_show.columns if c not in ("Encontrado", "Remessa (G5)", "Valor MV")]
-
-            st.subheader("Prévia do CSV tratado")
-            st.data_editor(
-                df_csv_show,
-                use_container_width=True,
-                hide_index=True,
-                disabled=disabled_cols,  # só a checkbox fica editável
-                key="csv_preview_editor",
-            )
-            st.session_state["cabergs_df_csv"] = df_csv_show
-
-        # CABERGS não segue para o fluxo de Google Sheets
-        st.stop()
 
     # ------------------------------------------------------------------
     # Fluxo padrão (Google Sheets) para os convênios
