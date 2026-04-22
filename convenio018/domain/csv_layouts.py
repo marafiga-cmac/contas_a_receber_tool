@@ -37,7 +37,7 @@ REMESSAS_COLUMNS = [
 ]
 RECURSOS_COLUMNS = [
     "Nº Remessa","Ref.","Nº NF",
-    "Valor glosado","Valor pago","Imposto","Glosa mantida"
+    "Valor recursado","Valor pago","Imposto","Glosa mantida"
 ]
 
 # Colunas por nome (usadas na leitura de datas/valor recursado)
@@ -46,9 +46,9 @@ REMESSA_DATE_KEYS = [
     "dt pgto remessa", "dt remessa"
 ]
 RECURSO_DATE_KEYS = [
-    "data emissão nf.", "data emissao nf",
     "data pgto recurso", "data pagamento recurso",
-    "data recurso", "data pgto rec", "dt pgto recurso"
+    "data recurso", "data pgto rec", "dt pgto recurso",
+    "data emissão nf.", "data emissao nf"
 ]
 VALOR_RECURSADO_KEYS = [
     "valor nf rg", "valor recursado",  # priorizado

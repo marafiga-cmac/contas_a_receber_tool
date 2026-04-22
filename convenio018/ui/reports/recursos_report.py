@@ -42,7 +42,7 @@ def render_relatorio_recursos(
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("Valor total de Glosa", _fmt_brl(totals.get("total_glosa", 0)))
+        st.metric("Valor Recursado", _fmt_brl(totals.get("total_recursado", 0)))
         st.metric("Valor total imposto", _fmt_brl(totals.get("total_imposto", 0)))
     with c2:
         st.metric("Valor total glosa mantida", _fmt_brl(totals.get("total_glosa_mantida", 0)))
@@ -87,7 +87,7 @@ def render_relatorio_recursos(
     table_html = dfp.to_html(index=False, border=0, escape=False)
 
     total_pairs = [
-        ("Valor total de Glosa", _fmt_brl(totals.get("total_glosa", 0))),
+        ("Valor Recursado", _fmt_brl(totals.get("total_recursado", 0))),
         ("Valor total imposto", _fmt_brl(totals.get("total_imposto", 0))),
         ("Valor total glosa mantida", _fmt_brl(totals.get("total_glosa_mantida", 0))),
         ("Valor total pago", _fmt_brl(totals.get("total_pago", 0))),

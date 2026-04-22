@@ -58,7 +58,7 @@ def compute_totals_remessas(df: pd.DataFrame) -> Dict[str, float]:
 
 def compute_totals_recursos(df: pd.DataFrame) -> Dict[str, float]:
     return {
-        "total_glosa": sum_col(df,"Valor glosado") if "Valor glosado" in df.columns else 0.0,
+        "total_recursado": sum_col(df,"Valor recursado") if "Valor recursado" in df.columns else 0.0,
         "total_imposto": sum_col(df,"Imposto"),
         "total_glosa_mantida": sum_col(df,"Glosa mantida"),
         "total_pago": sum_col(df,"Valor pago") if "Valor pago" in df.columns else sum_col(df,"Valor pgto"),
