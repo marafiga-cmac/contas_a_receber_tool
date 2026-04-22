@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ...services.api import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe, processar_ipe_xls_adicionais
+from ...services.api import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe, processar_ipe_xls_adicionais, executar_identificacao_final
 
 def render() -> None:
     st.subheader("Identificação Ipê")
@@ -169,3 +169,56 @@ def render() -> None:
                 df_xls = st.session_state["ipe_df_xls_fase3"]
                 st.markdown(f"#### Pré-visualização (Total de linhas: {len(df_xls)})")
                 st.dataframe(df_xls, use_container_width=True, hide_index=True)
+
+            # ==========================================
+            # FASE 4: Cruzamento Final (Autorizadas x Relatórios Internos)
+            # ==========================================
+            if "ipe_df_xls_fase3" in st.session_state and "ipe_fase2_df" in st.session_state:
+                df_xls_f3 = st.session_state["ipe_df_xls_fase3"]
+                df_f2 = st.session_state["ipe_fase2_df"]
+                
+                if not df_xls_f3.empty and not df_f2.empty:
+                    st.divider()
+                    st.subheader("Fase 4: Cruzamento Final")
+                    st.markdown(
+                        "Cruza os atendimentos validados na Fase 2 com os relatórios consolidados na Fase 3."
+                    )
+
+                    if st.button("Executar Identificação", type="primary", key="btn_ipe_fase4"):
+                        with st.spinner("Executando cruzamento final..."):
+                            try:
+                                df_enc, df_rep, df_nao = executar_identificacao_final(df_f2, df_xls_f3)
+                                
+                                st.session_state["ipe_final_encontrados"] = df_enc
+                                st.session_state["ipe_final_repetidos"] = df_rep
+                                st.session_state["ipe_final_nao_encontrados"] = df_nao
+                                st.success("✅ Identificação concluída!")
+                            except ValueError as ve:
+                                st.error(f"Erro de validação: {ve}")
+                            except Exception as e:
+                                st.error(f"Erro ao executar cruzamento: {e}")
+
+                    if "ipe_final_encontrados" in st.session_state:
+                        df_enc = st.session_state["ipe_final_encontrados"]
+                        df_rep = st.session_state["ipe_final_repetidos"]
+                        df_nao = st.session_state["ipe_final_nao_encontrados"]
+
+                        st.markdown("#### Resultados do Cruzamento Final:")
+                        
+                        opcao_fase4 = st.radio(
+                            "Selecione a visão de dados (Fase 4):",
+                            [
+                                f"✅ Identificados ({len(df_enc)})", 
+                                f"❌ Não Encontrados ({len(df_nao)})", 
+                                f"⚠️ Repetidos ({len(df_rep)})"
+                            ],
+                            horizontal=True,
+                            key="radio_fase4_visao"
+                        )
+
+                        if opcao_fase4.startswith("✅"):
+                            st.dataframe(df_enc, use_container_width=True, hide_index=True)
+                        elif opcao_fase4.startswith("❌"):
+                            st.dataframe(df_nao, use_container_width=True, hide_index=True)
+                        else:
+                            st.dataframe(df_rep, use_container_width=True, hide_index=True)

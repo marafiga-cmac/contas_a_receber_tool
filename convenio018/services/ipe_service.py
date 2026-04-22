@@ -310,3 +310,117 @@ def processar_ipe_xls_adicionais(uploaded_files) -> pd.DataFrame:
     out = _drop_rows_without_inicio(out, "Início")
 
     return out
+
+def limpar_valor(v) -> float:
+    """Converte strings financeiras (ex: '80,00' ou 'R$ 80.00') para float cravado."""
+    if pd.isna(v) or v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).replace('R$', '').strip()
+    if ',' in s and '.' in s:
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        s = s.replace(',', '.')
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+def nomes_parecidos(n1: str, n2: str) -> bool:
+    """
+    O 'Match' é verdadeiro SE o primeiro nome for idêntico
+    E o tamanho da intersecção entre as duas listas de nomes for >= 2.
+    """
+    if pd.isna(n1) or pd.isna(n2) or not n1 or not n2:
+        return False
+    
+    parts1 = str(n1).strip().upper().split()
+    parts2 = str(n2).strip().upper().split()
+    
+    if not parts1 or not parts2:
+        return False
+        
+    if parts1[0] != parts2[0]:
+        return False
+        
+    intersection = set(parts1).intersection(set(parts2))
+    return len(intersection) >= 2
+
+def executar_identificacao_final(df_fase2: pd.DataFrame, df_fase3: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Cruza Fase 2 (Autorizadas) com Fase 3 (Relatórios Internos XLS).
+    Fase 2 tem N.Nota, Nome, Dia, Hora, Vlr IPE, Status_Cancelado.
+    Fase 3 tem Arquivo, Remessa (G5), Competência (X5), Início, Término, Nome, Valor, etc.
+    """
+    if df_fase2 is None or df_fase2.empty or df_fase3 is None or df_fase3.empty:
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+    encontrados = []
+    repetidos = []
+    nao_encontrados = []
+
+    fase2_validos = df_fase2[df_fase2.get("Status_Cancelado", False) == False]
+
+    col_nome_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["nome", "beneficiário", "paciente"]), None)
+    col_valor_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["valor", "vlr", "valor cobrado", "valor pago"]), None)
+    col_termino_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["término", "termino", "data", "data atendimento"]), None)
+
+    if not col_nome_f3 or not col_valor_f3 or not col_termino_f3:
+        raise ValueError(f"Faltam colunas essenciais na Fase 3. Encontradas: {df_fase3.columns.tolist()}")
+
+    df_fase3_search = df_fase3.copy()
+    df_fase3_search["_valor_limpo"] = df_fase3_search[col_valor_f3].apply(limpar_valor)
+    df_fase3_search["_termino_str"] = df_fase3_search[col_termino_f3].astype(str).str.strip()
+
+    for idx, row2 in fase2_validos.iterrows():
+        vlr2 = limpar_valor(row2.get("Vlr IPE"))
+        nome2 = row2.get("Nome", "")
+        dia2 = str(row2.get("Dia", "")).zfill(2)
+        n_nota2 = row2.get("N.Nota", "")
+
+        mask_valor = df_fase3_search["_valor_limpo"] == vlr2
+        mask_dia = df_fase3_search["_termino_str"].str.startswith(dia2)
+        
+        candidatos = df_fase3_search[mask_valor & mask_dia]
+
+        matches = []
+        for c_idx, cand in candidatos.iterrows():
+            if nomes_parecidos(nome2, cand.get(col_nome_f3, "")):
+                matches.append(cand)
+
+        if len(matches) == 1:
+            match = matches[0]
+            encontrados.append({
+                "Remessa": match.get("Remessa (G5) (orig)", match.get("Remessa (G5)", "")),
+                "N.Nota": n_nota2,
+                "Competência": match.get("Competência (X5) (orig)", match.get("Competência (X5)", "")),
+                "Data Atendimento": match.get(col_termino_f3, ""),
+                "Nome": nome2,
+                "Valor": row2.get("Vlr IPE")
+            })
+        elif len(matches) > 1:
+            for match in matches:
+                repetidos.append({
+                    "Remessa": match.get("Remessa (G5) (orig)", match.get("Remessa (G5)", "")),
+                    "N.Nota": n_nota2,
+                    "Competência": match.get("Competência (X5) (orig)", match.get("Competência (X5)", "")),
+                    "Data Atendimento": match.get(col_termino_f3, ""),
+                    "Nome": nome2,
+                    "Valor": row2.get("Vlr IPE"),
+                    "Status": "Múltiplos registros com mesmo valor e data"
+                })
+        else:
+            nao_encontrados.append({
+                "N.Nota": n_nota2,
+                "Nome": nome2,
+                "Dia": row2.get("Dia"),
+                "Vlr IPE": row2.get("Vlr IPE"),
+                "Status": "Não localizado no relatório interno"
+            })
+
+    df_enc = pd.DataFrame(encontrados, columns=["Remessa", "N.Nota", "Competência", "Data Atendimento", "Nome", "Valor"])
+    df_rep = pd.DataFrame(repetidos, columns=["Remessa", "N.Nota", "Competência", "Data Atendimento", "Nome", "Valor", "Status"])
+    df_nao = pd.DataFrame(nao_encontrados, columns=["N.Nota", "Nome", "Dia", "Vlr IPE", "Status"])
+
+    return df_enc, df_rep, df_nao
