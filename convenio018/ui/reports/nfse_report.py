@@ -9,6 +9,26 @@ import streamlit.components.v1 as components
 from ...services.exports_service import gerar_csv_nfse_lancamentos_bytes
 from .print_templates import LOGO_PATH, _build_print_html, _path_to_data_uri
 
+def _to_float_any(v):
+    if v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == "":
+        return 0.0
+    s = str(v).strip().replace("R$", "").replace(" ", "")
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
+
+def _fmt_money(v):
+    try:
+        x = _to_float_any(v)
+        return "R$ " + f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "R$ 0,00"
+
 def render_relatorio_nfse_para_impressao(items: list[dict]):
     modo_nfse = (st.session_state.get("nfse_modo") or "").lower()
 
@@ -93,27 +113,6 @@ def render_relatorio_nfse_para_impressao(items: list[dict]):
         # Zera o Valor glosado apenas nas linhas de recurso
         if "Valor glosado" in df.columns:
             df.loc[mask_recurso, "Valor glosado"] = 0.0
-
-    # --- helpers de moeda ---
-    def _to_float_any(v):
-        if v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == "":
-            return 0.0
-        s = str(v).strip().replace("R$", "").replace(" ", "")
-        if "," in s and "." in s:
-            s = s.replace(".", "").replace(",", ".")
-        elif "," in s:
-            s = s.replace(",", ".")
-        try:
-            return float(s)
-        except Exception:
-            return 0.0
-
-    def _fmt_money(v):
-        try:
-            x = _to_float_any(v)
-            return "R$ " + f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        except Exception:
-            return "R$ 0,00"
 
     # --- totais ---
     total_envio_xml = float(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ...services.api import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe
+from ...services.api import extrair_dados_demonstrativo_ipe, extrair_detalhado_consultas_ipe, processar_ipe_xls_adicionais
 
 def render() -> None:
     st.subheader("Identificação Ipê")
@@ -133,3 +133,39 @@ def render() -> None:
             else:
                 st.caption(f"Exibindo **{len(df_n_encontrados)}** consultas sem correspondência no Demonstrativo ou marcadas como CANCELADA.")
                 st.dataframe(df_n_encontrados[cols_exibicao], use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            # ==========================================
+            # FASE 3: Conferência de Relatórios Internos (XLS)
+            # ==========================================
+            st.subheader("Fase 3: Conferência de Relatórios Internos (XLS)")
+            st.markdown(
+                "Faça o upload dos **Relatórios Internos** (formatos `.xls` ou `.xlsx`). "
+                "Eles serão consolidados usando o mesmo tratamento de cabeçalhos e colunas vazias."
+            )
+
+            up_fase3 = st.file_uploader(
+                "Enviar Relatórios Internos",
+                type=["xls", "xlsx"],
+                accept_multiple_files=True,
+                key="ipe_fase3_uploader"
+            )
+
+            if up_fase3:
+                if st.button("Processar Relatórios Internos", type="primary", key="btn_ipe_fase3"):
+                    with st.spinner("Processando arquivos..."):
+                        try:
+                            df_fase3 = processar_ipe_xls_adicionais(up_fase3)
+                            if not df_fase3.empty:
+                                st.session_state["ipe_df_xls_fase3"] = df_fase3
+                                st.success("✅ Arquivos lidos e consolidados com sucesso!")
+                            else:
+                                st.warning("Nenhum dado válido encontrado nos arquivos.")
+                        except Exception as e:
+                            st.error(f"Erro ao processar relatórios: {e}")
+
+            if "ipe_df_xls_fase3" in st.session_state:
+                df_xls = st.session_state["ipe_df_xls_fase3"]
+                st.markdown(f"#### Pré-visualização (Total de linhas: {len(df_xls)})")
+                st.dataframe(df_xls, use_container_width=True, hide_index=True)
