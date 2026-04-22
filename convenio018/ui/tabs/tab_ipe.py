@@ -187,7 +187,16 @@ def render() -> None:
                     if st.button("Executar Identificação", type="primary", key="btn_ipe_fase4"):
                         with st.spinner("Executando cruzamento final..."):
                             try:
-                                df_enc, df_rep, df_nao = executar_identificacao_final(df_f2, df_xls_f3)
+                                # Filtro: Apenas os registros que deram match com a Fase 1 e não estão cancelados
+                                df_f2['N.Nota'] = df_f2['N.Nota'].astype(str).str.strip()
+                                df_fase1['Nro Doc'] = df_fase1['Nro Doc'].astype(str).str.strip()
+                                
+                                df_f2_validados = df_f2[
+                                    (df_f2['N.Nota'].isin(df_fase1['Nro Doc'])) & 
+                                    (~df_f2['Status_Cancelado'])
+                                ].copy()
+
+                                df_enc, df_rep, df_nao = executar_identificacao_final(df_f2_validados, df_xls_f3)
                                 
                                 st.session_state["ipe_final_encontrados"] = df_enc
                                 st.session_state["ipe_final_repetidos"] = df_rep
