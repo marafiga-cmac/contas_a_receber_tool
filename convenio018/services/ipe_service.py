@@ -362,12 +362,15 @@ def executar_identificacao_final(df_fase2: pd.DataFrame, df_fase3: pd.DataFrame)
 
     fase2_validos = df_fase2[df_fase2.get("Status_Cancelado", False) == False]
 
-    col_nome_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["nome", "beneficiário", "paciente"]), None)
-    col_valor_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["valor", "vlr", "valor cobrado", "valor pago"]), None)
-    col_termino_f3 = next((c for c in df_fase3.columns if c.strip().lower() in ["término", "termino", "data", "data atendimento"]), None)
+    # Validação exata das colunas da Fase 3
+    cols_obrigatorias = ['Remessa (G5)', 'Competência (X5)', 'Término', 'Atendimento', 'Valor']
+    for col in cols_obrigatorias:
+        if col not in df_fase3.columns:
+            raise ValueError(f"Faltam colunas essenciais na Fase 3. Faltando: {col}. Encontradas: {df_fase3.columns.tolist()}")
 
-    if not col_nome_f3 or not col_valor_f3 or not col_termino_f3:
-        raise ValueError(f"Faltam colunas essenciais na Fase 3. Encontradas: {df_fase3.columns.tolist()}")
+    col_nome_f3 = 'Atendimento'
+    col_valor_f3 = 'Valor'
+    col_termino_f3 = 'Término'
 
     df_fase3_search = df_fase3.copy()
     df_fase3_search["_valor_limpo"] = df_fase3_search[col_valor_f3].apply(limpar_valor)
@@ -392,20 +395,20 @@ def executar_identificacao_final(df_fase2: pd.DataFrame, df_fase3: pd.DataFrame)
         if len(matches) == 1:
             match = matches[0]
             encontrados.append({
-                "Remessa": match.get("Remessa (G5) (orig)", match.get("Remessa (G5)", "")),
+                "Remessa": match['Remessa (G5)'],
                 "N.Nota": n_nota2,
-                "Competência": match.get("Competência (X5) (orig)", match.get("Competência (X5)", "")),
-                "Data Atendimento": match.get(col_termino_f3, ""),
+                "Competência": match['Competência (X5)'],
+                "Data Atendimento": match[col_termino_f3],
                 "Nome": nome2,
                 "Valor": row2.get("Vlr IPE")
             })
         elif len(matches) > 1:
             for match in matches:
                 repetidos.append({
-                    "Remessa": match.get("Remessa (G5) (orig)", match.get("Remessa (G5)", "")),
+                    "Remessa": match['Remessa (G5)'],
                     "N.Nota": n_nota2,
-                    "Competência": match.get("Competência (X5) (orig)", match.get("Competência (X5)", "")),
-                    "Data Atendimento": match.get(col_termino_f3, ""),
+                    "Competência": match['Competência (X5)'],
+                    "Data Atendimento": match[col_termino_f3],
                     "Nome": nome2,
                     "Valor": row2.get("Vlr IPE"),
                     "Status": "Múltiplos registros com mesmo valor e data"
